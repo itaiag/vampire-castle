@@ -1,0 +1,233 @@
+"""
+map_renderer.py — Castle map overlay.
+
+Draws all rooms as nodes, connections as lines,
+colours rooms by status (unvisited / visited / claimed / hostile).
+Press M to open/close.
+"""
+
+import pygame
+
+
+# Room positions on the map canvas (x, y) — laid out to match the castle structure
+ROOM_POSITIONS = {
+    0: (400, 480),   # Grand Entrance   (bottom centre)
+    1: (240, 340),   # Old Kitchens     (left mid)
+    2: (560, 340),   # Chapel           (right mid)
+    3: (400, 200),   # Upper Gallery    (top centre)
+    4: (400, 60),    # Throne Room      (very top)
+    5: (240, 480),   # Dungeon Wing     (bottom left)
+    6: (560, 200),   # Alchemist's Lab  (right upper)
+    7: (560, 60),    # East Tower       (top right)
+    8: (240, 200),   # Great Library    (left upper)
+    9: (400, 100),   # Inner Sanctum    (very top, below throne)
+    10: (240, 380),  # Guard Barracks   (left mid-low)
+    11: (120, 340),  # Servants' Quarters (far left)
+    12: (680, 340),  # Treasury         (far right)
+    13: (500, 250),  # Winter Garden    (upper right of gallery)
+    14: (680, 220),  # Forgotten Vault  (secret, above Treasury)
+}
+
+CONNECTIONS = [
+    (0, 1),   # Entrance <-> Kitchens
+    (0, 2),   # Entrance <-> Chapel
+    (1, 3),   # Kitchens <-> Gallery
+    (1, 5),   # Kitchens <-> Dungeon
+    (1, 11),  # Kitchens <-> Servants' Quarters
+    (1, 8),   # Kitchens <-> Library
+    (2, 3),   # Chapel   <-> Gallery
+    (2, 12),  # Chapel   <-> Treasury
+    (3, 4),   # Gallery  <-> Throne Room
+    (3, 6),   # Gallery  <-> Lab
+    (3, 13),  # Gallery  <-> Winter Garden
+    (4, 9),   # Throne Room <-> Inner Sanctum
+    (5, 7),   # Dungeon  <-> East Tower
+    (5, 10),  # Dungeon  <-> Barracks
+    (6, 7),   # Lab      <-> East Tower
+    (8, 9),   # Library  <-> Inner Sanctum
+    (8, 10),  # Library  <-> Barracks
+    (12, 14), # Treasury <-> Forgotten Vault (secret)
+]
+
+# Secret passage (shown only if Mira is in court)
+SECRET_CONNECTION = (1, 4)   # Kitchens <-> Throne Room hidden passage
+
+NODE_RADIUS = 36
+FONT_NAME   = "Georgia"
+
+
+class MapRenderer:
+    def __init__(self, screen: pygame.Surface):
+        self.screen = screen
+        self.font_title = pygame.font.SysFont(FONT_NAME, 15, bold=True)
+        self.font_small = pygame.font.SysFont(FONT_NAME, 12)
+
+    def draw(self, castle, player, visited_rooms: set) -> None:
+        W, H = self.screen.get_size()
+
+        # Dark translucent overlay
+        overlay = pygame.Surface((W, H), pygame.SRCALPHA)
+        overlay.fill((8, 4, 18, 220))
+        self.screen.blit(overlay, (0, 0))
+
+        # Title
+        title_font = pygame.font.SysFont(FONT_NAME, 28, bold=True)
+        title = title_font.render("Castle Map", True, (200, 170, 80))
+        self.screen.blit(title, (W // 2 - title.get_width() // 2, 20))
+
+        hint = self.font_small.render("[M] Close map", True, (100, 90, 120))
+        self.screen.blit(hint, (W // 2 - hint.get_width() // 2, 56))
+
+        # Offset so map is centred on screen
+        ox = W // 2 - 400
+        oy = H // 2 - 270
+
+        # Check if secret passage is unlocked (Mira is in court)
+        from npc import NPCRole
+        secret_unlocked = any(n.role == NPCRole.SERVANT and n.is_controllable() for n in player.court)
+
+        # Draw connections
+        for a, b in CONNECTIONS:
+            self._draw_connection(a, b, ox, oy, dashed=False)
+
+        if secret_unlocked:
+            self._draw_connection(*SECRET_CONNECTION, ox, oy, dashed=True)
+
+        # Draw room nodes
+        for room_idx, room in enumerate(castle.rooms):
+            pos = ROOM_POSITIONS[room_idx]
+            cx = pos[0] + ox
+            cy = pos[1] + oy
+
+            visited   = room_idx in visited_rooms
+            is_current = room_idx == player.current_room
+
+            npcs_here   = castle.get_npcs_in_room(room_idx)
+            has_hostile = any(n.is_hostile() for n in npcs_here)
+            has_claimed = any(n.is_controllable() for n in npcs_here)
+            has_neutral = any(not n.is_controllable() and not n.is_hostile() for n in npcs_here)
+
+            # Node fill colour
+            if not visited and not is_current:
+                fill   = (25, 18, 40)
+                border = (60, 45, 80)
+                label_color = (60, 50, 80)
+            elif has_hostile:
+                fill   = (60, 15, 15)
+                border = (200, 50, 50)
+                label_color = (220, 100, 80)
+            elif has_claimed and not has_neutral and not has_hostile:
+                fill   = (15, 40, 60)
+                border = (60, 160, 220)
+                label_color = (100, 190, 240)
+            elif has_claimed:
+                fill   = (30, 20, 55)
+                border = (130, 80, 200)
+                label_color = (170, 130, 220)
+            else:
+                fill   = (30, 22, 48)
+                border = (110, 85, 150)
+                label_color = (180, 165, 210)
+
+            # Current room pulse ring
+            if is_current:
+                pygame.draw.circle(self.screen, (200, 170, 80), (cx, cy), NODE_RADIUS + 8, 2)
+
+            # Node circle
+            pygame.draw.circle(self.screen, fill,   (cx, cy), NODE_RADIUS)
+            pygame.draw.circle(self.screen, border, (cx, cy), NODE_RADIUS, 2)
+
+            # Room name
+            name = castle.rooms[room_idx].name
+            # Shorten long names to fit
+            short_names = {
+                "The Grand Entrance": "Entrance",
+                "The Old Kitchens":   "Kitchens",
+                "The Chapel":         "Chapel",
+                "The Upper Gallery":  "Gallery",
+                "The Throne Room":    "Throne Room",
+                "The Dungeon Wing":   "Dungeon",
+                "The Alchemist's Laboratory": "Lab",
+                "The East Tower":     "Tower",
+                "The Great Library":  "Library",
+                "The Inner Sanctum":  "Sanctum",
+                "The Guard Barracks": "Barracks",
+                "The Servants' Quarters": "Servants",
+                "The Treasury":       "Treasury",
+                "The Winter Garden":  "Garden",
+                "The Forgotten Vault": "Vault???",
+            }
+            display_name = short_names.get(name, name)
+
+            if visited or is_current:
+                name_surf = self.font_title.render(display_name, True, label_color)
+                self.screen.blit(name_surf, (cx - name_surf.get_width() // 2, cy - 10))
+
+                # NPC status icons below name
+                icon_x = cx - len(npcs_here) * 10
+                for npc in npcs_here:
+                    color = npc.status_color() if visited or is_current else (50, 40, 65)
+                    pygame.draw.circle(self.screen, color, (icon_x, cy + 16), 6)
+                    icon_x += 20
+            else:
+                # Unvisited — show "???"
+                unk = self.font_title.render("???", True, (50, 40, 65))
+                self.screen.blit(unk, (cx - unk.get_width() // 2, cy - 8))
+
+            # "YOU ARE HERE" marker
+            if is_current:
+                you = self.font_small.render("YOU", True, (200, 170, 80))
+                self.screen.blit(you, (cx - you.get_width() // 2, cy + 26))
+
+        # Legend
+        self._draw_legend(W, H)
+
+    def _draw_connection(self, a: int, b: int, ox: int, oy: int, dashed: bool) -> None:
+        ax = ROOM_POSITIONS[a][0] + ox
+        ay = ROOM_POSITIONS[a][1] + oy
+        bx = ROOM_POSITIONS[b][0] + ox
+        by = ROOM_POSITIONS[b][1] + oy
+
+        color = (80, 60, 120) if not dashed else (100, 60, 160)
+
+        if dashed:
+            # Draw dashed line
+            import math
+            dx, dy = bx - ax, by - ay
+            dist = math.hypot(dx, dy)
+            steps = int(dist / 14)
+            for i in range(steps):
+                t0 = i / steps
+                t1 = (i + 0.5) / steps
+                x0 = int(ax + dx * t0)
+                y0 = int(ay + dy * t0)
+                x1 = int(ax + dx * t1)
+                y1 = int(ay + dy * t1)
+                pygame.draw.line(self.screen, color, (x0, y0), (x1, y1), 1)
+            # Label
+            mx = (ax + bx) // 2
+            my = (ay + by) // 2
+            sec = self.font_small.render("secret", True, (100, 60, 160))
+            self.screen.blit(sec, (mx - sec.get_width() // 2, my - 8))
+        else:
+            pygame.draw.line(self.screen, color, (ax, ay), (bx, by), 2)
+
+    def _draw_legend(self, W: int, H: int) -> None:
+        items = [
+            ((60, 160, 220),  "Fully claimed"),
+            ((130, 80, 200),  "Partially claimed"),
+            ((110, 85, 150),  "Visited, neutral"),
+            ((200, 50,  50),  "Hostile NPC"),
+            ((60,  45,  80),  "Unvisited"),
+            ((200, 170, 80),  "You are here"),
+        ]
+        lx = W - 200
+        ly = H - 160
+        bg = pygame.Surface((185, len(items) * 24 + 16), pygame.SRCALPHA)
+        bg.fill((15, 10, 28, 200))
+        self.screen.blit(bg, (lx - 8, ly - 8))
+
+        for i, (color, label) in enumerate(items):
+            pygame.draw.circle(self.screen, color, (lx + 8, ly + i * 24 + 8), 7)
+            surf = self.font_small.render(label, True, (160, 150, 180))
+            self.screen.blit(surf, (lx + 22, ly + i * 24))

@@ -1,0 +1,143 @@
+========================================
+COMPLETELY DIFFERENT NPC SILHOUETTES
+========================================
+
+ALDRIC (Big Bulky Guard)
+=======================
+       .SSSSSSSSS.
+       .S.1...1.S.
+       .S.XXXXX.S.
+       .SSSXXXSSS.
+       .SSSSSSSS..
+       ..GGGGGGG..
+       ..GGG.GGG..
+
+WIDTH: MAXIMUM - Broad shoulders, heavy armor
+HEIGHT: Medium-tall
+BODY: BULKY and IMPOSING
+LOOK: Heavy, powerful, scarred guard
+
+
+MIRA (Tiny Delicate Girl)
+=========================
+       ....WW....
+       ...WWWW...
+       ...W11W...
+       ...W1EW...
+       ....WW....
+       ...AAA....
+       ..AAA.AA..
+
+WIDTH: MINIMUM - Very narrow frame
+HEIGHT: SHORT - Almost child-like
+BODY: Fragile, thin, delicate
+LOOK: Young, anxious, vulnerable servant
+
+
+DORIN (Old Bent Priest)
+=======================
+       ......+...
+       .....+++..
+       ...RRRR+..
+       ...R11R+..
+       ...RXXXR..
+       ..RRXXXR..
+       ..WRRRW...
+
+POSTURE: HUNCHED - Cross held way up high
+HEIGHT: Bent over, appears shorter
+BODY: Frail, old, worn
+LOOK: Aged, religious, determined
+
+
+SERAPHINE (Tall Elegant Noble)
+===============================
+       .....V....
+       ....VVV...
+       ...VVV1V..
+       ...V.1.V..
+       ....V1V...
+       ....VVV...
+       ...PPVVPP.
+
+WIDTH: NARROW/GRACEFUL
+HEIGHT: VERY TALL - Extends down with long thin lines
+BODY: Slender, refined, elegant
+LOOK: Graceful noblewoman, proud posture
+
+
+VIKTOR (Massive Muscular Torturer)
+===================================
+       .....S....
+       ...SSSSSSS  <-- EXTREMELY WIDE
+       ...S.X.XS.
+       ..SSS1X1S.
+       ..SS1XXX1S
+       ..SSX1X1XS
+       .KKKGSGSKK
+       KKKKKSGSKK  <-- TAKES UP ENTIRE WIDTH
+
+WIDTH: MAXIMUM+ - Overflows right edge
+HEIGHT: Squat, compact, dense
+BODY: MASSIVE bulk, intimidating
+LOOK: Huge muscular torturer, terrifying
+
+
+ERASMUS (Short Scrawny Alchemist)
+==================================
+       ...HHHH...  <-- POINTED HAT distinctive
+       ..HHHHHH..
+       ..HHGGGGG.
+       ..HG1G1G..
+       ..HG.G.G..
+       ....GGGGG.  <-- Very thin vertical line
+       ..PPG...G.
+       .PPG..G...
+
+WIDTH: NARROW - Thin spindly frame
+HEIGHT: SHORT - Very compact
+BODY: Skeletal, crooked posture
+LOOK: Old scholar, eccentric, twisted over books
+
+
+ISOLDE (Combat Ready Hunter)
+=============================
+       ...BBB....
+       ..BBBBB...
+       ..B.X.XB..
+       .BBX1X1BB.
+       .BB1XXX1B.
+       ..BXBXBX..
+       .RRRB>BBG.  <-- ASYMMETRICAL stance
+       RRRRB>B>G.  <-- Weapon visible, unbalanced
+
+WIDTH: Asymmetrical - uneven posture
+HEIGHT: Medium - athletic
+BODY: Lean, scarred, battle-ready
+LOOK: Combat stance, armed, dangerous
+
+
+========================================
+QUICK VISUAL COMPARISON
+========================================
+
+        Skinny    Medium     Fat
+MIRA      [TINY]
+ERASMUS   [THIN]
+SERAPHINE         [MEDIUM-TALL]
+DORIN             [MEDIUM-HUNCHED]
+ALDRIC                      [BULKY]
+ISOLDE                      [SCARRED-ASYMMETRICAL]
+VIKTOR                      [MASSIVE/OVERFLOW]
+
+Each one is now OBVIOUSLY different at a glance!
+
+- MIRA: Smallest, most fragile
+- ERASMUS: Tall and scrawny with pointed hat
+- SERAPHINE: Tall and elegant (long thin form)
+- DORIN: Hunched with cross held high
+- ALDRIC: Broad and powerful with scarring
+- ISOLDE: Asymmetrical combat stance
+- VIKTOR: Overflows the screen width - HUGE
+
+========================================
