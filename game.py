@@ -12,6 +12,7 @@ Scenes:
 import pygame
 import textwrap
 import math
+import time
 from player import Player
 from castle import build_castle
 from powers import (
@@ -29,6 +30,7 @@ from pixel_renderer import (
 from sound import SoundSystem
 from abilities import AbilitySystem, ABILITY_BY_ID
 from quests import QuestSystem, QuestStatus
+from encounters import random_encounter, VENTURE_COOLDOWN
 
 
 # ── Colours ──────────────────────────────────────────────────────────────────
@@ -117,6 +119,13 @@ class Game:
         self.morgana_defeated = False  # whether Morgana has been defeated in combat
         self.victory_type = None  # "married_morgana", "married_seraphine", or None
 
+        # Outside venture system
+        self.last_venture_time = 0.0   # epoch seconds; 0 = never ventured (available immediately)
+        self.active_encounter = None   # current Encounter object while in "encounter" scene
+        self.encounter_recruited_npc_ids: set = set()   # recruitable_npc_id values already added
+        self.encounter_unlocked_room_ids: set = set()   # room indices already unlocked via encounters
+        self.completed_encounter_ids: set = set()       # encounter IDs already experienced (no repeats)
+
         # Simple top-down player position (pixels within map area)
         self.px = MAP_W // 2
         self.py = H // 2
@@ -169,6 +178,14 @@ class Game:
             self.scene = "journal"
             return
 
+        # I toggles inventory
+        if key == pygame.K_i and self.scene == "inventory":
+            self.scene = "explore"
+            return
+        if key == pygame.K_i and self.scene == "explore":
+            self.scene = "inventory"
+            return
+
         if self.show_map:
             return
 
@@ -189,6 +206,13 @@ class Game:
                     self.scene = "interact"
         elif self.scene == "court":
             if key == pygame.K_ESCAPE:
+                self.scene = "explore"
+        elif self.scene == "inventory":
+            if key in (pygame.K_ESCAPE, pygame.K_i):
+                self.scene = "explore"
+        elif self.scene == "encounter":
+            if key in (pygame.K_SPACE, pygame.K_RETURN, pygame.K_ESCAPE):
+                self.active_encounter = None
                 self.scene = "explore"
         elif self.scene == "journal":
             self._journal_key(key)
@@ -232,6 +256,7 @@ class Game:
                 self.current_element_idx = 0
                 self.examined_element = room.interactive_elements[0]
                 self._log(f"Examining: {self.examined_element['name']}")
+                self._try_pickup_item(self.examined_element)
             else:
                 self._log("There is nothing of interest here.")
 
@@ -245,6 +270,7 @@ class Game:
                     self.current_element_idx = (self.current_element_idx + 1) % len(room.interactive_elements)
                 self.examined_element = room.interactive_elements[self.current_element_idx]
                 self._log(f"Examining: {self.examined_element['name']}")
+                self._try_pickup_item(self.examined_element)
 
         # F — feed (if room allows)
         elif key == pygame.K_f:
@@ -254,6 +280,14 @@ class Game:
                 self._log(msg)
             else:
                 self._log("There is nothing to feed on here.")
+
+        # V — venture outside (Castle Gate only)
+        elif key == pygame.K_v:
+            room = self.castle.get_room(self.player.current_room)
+            if room.outside_access:
+                self._start_venture()
+            else:
+                self._log("There is nowhere to venture from here.")
 
         # Tab — view your court
         elif key == pygame.K_TAB:
@@ -599,6 +633,10 @@ class Game:
             self._draw_levelup()
         elif self.scene == "court":
             self._draw_court()
+        elif self.scene == "inventory":
+            self._draw_inventory()
+        elif self.scene == "encounter":
+            self._draw_encounter()
         elif self.scene == "journal":
             self._draw_journal()
         elif self.scene == "game_over":
@@ -666,6 +704,24 @@ class Game:
             cycle_hint = self.font_small.render("[Q/Z] Cycle   [X] Clear", True, MUTED)
             self.screen.blit(cycle_hint, (30, H - 94))
 
+        # Venture outside status banner (Castle Gate only)
+        if room.outside_access:
+            remaining = self._venture_cooldown_remaining()
+            if remaining <= 0:
+                v_text = "The night awaits.  [V] Venture Outside"
+                v_color = GREEN
+            else:
+                mins = int(remaining // 60)
+                secs = int(remaining % 60)
+                v_text = f"You must rest before venturing again.  ({mins}:{secs:02d})"
+                v_color = MUTED
+            pygame.draw.rect(self.screen, (18, 25, 18),
+                             (20, H - 215, MAP_W - 40, 30), border_radius=4)
+            pygame.draw.rect(self.screen, v_color,
+                             (20, H - 215, MAP_W - 40, 30), 1, border_radius=4)
+            v_surf = self.font_ui_b.render(v_text, True, v_color)
+            self.screen.blit(v_surf, (30, H - 208))
+
         # Exits text hint
         exits = room.exits
         hint_y = H - 48 if not self.examined_element else H - 48
@@ -674,7 +730,8 @@ class Game:
         self.screen.blit(exits_surf, (20, hint_y))
 
         # Controls hint
-        hints = "[WASD] Move   [E] Interact   [F] Feed   [X] Examine   [TAB] Court   [Q] Journal   [M] Map"
+        venture_hint = "   [V] Venture Outside" if room.outside_access else ""
+        hints = f"[WASD] Move   [E] Interact   [F] Feed   [X] Examine   [TAB] Court   [Q] Journal   [I] Items   [M] Map{venture_hint}"
         hint_surf = self.font_ui.render(hints, True, MUTED)
         self.screen.blit(hint_surf, (20, H - 26))
 
@@ -1302,6 +1359,276 @@ class Game:
 
         return y + card_h
 
+    # ── Outside venture ───────────────────────────────────────────────────────
+
+    def _venture_cooldown_remaining(self) -> float:
+        """Seconds until player can venture again. 0 means available now."""
+        elapsed = time.time() - self.last_venture_time
+        return max(0.0, VENTURE_COOLDOWN - elapsed)
+
+    def _start_venture(self) -> None:
+        """Attempt to venture outside. Blocked if cooldown is active."""
+        remaining = self._venture_cooldown_remaining()
+        if remaining > 0:
+            mins = int(remaining // 60)
+            secs = int(remaining % 60)
+            self._log(f"You must rest before venturing again. ({mins}:{secs:02d})")
+            return
+
+        # Pick encounter — filter out ones already completed
+        castle_npc_names = {n.name for n in self.castle.npcs}
+        encounter = random_encounter(
+            castle_npc_names=castle_npc_names,
+            unlocked_room_ids=self.encounter_unlocked_room_ids,
+            completed_encounter_ids=self.completed_encounter_ids,
+        )
+        self.active_encounter = encounter
+        self.last_venture_time = time.time()
+
+        # Mark this encounter as completed
+        self.completed_encounter_ids.add(encounter.id)
+
+        # Blood
+        if encounter.blood_reward > 0:
+            self.player.blood = min(self.player.max_blood,
+                                    self.player.blood + encounter.blood_reward)
+        elif encounter.blood_reward < 0:
+            self.player.blood = max(0, self.player.blood + encounter.blood_reward)
+
+        # XP
+        if encounter.xp_reward > 0:
+            if self.abilities.add_xp(encounter.xp_reward):
+                self.scene = "levelup"   # will be overridden below; levelup checked later
+
+        # Suspicion
+        if encounter.suspicion_change > 0:
+            self.player.raise_suspicion(encounter.suspicion_change)
+        elif encounter.suspicion_change < 0:
+            self.player.lower_suspicion(-encounter.suspicion_change)
+
+        # Item
+        if encounter.item_id:
+            from items import ITEMS
+            item = ITEMS.get(encounter.item_id)
+            if item:
+                self.player.add_item(item)
+
+        # NPC recruitment — create NPC and place in thematic room
+        if encounter.recruitable_npc_id:
+            from encounters import ENCOUNTER_NPC_FACTORIES, ENCOUNTER_NPC_NAMES
+            factory = ENCOUNTER_NPC_FACTORIES.get(encounter.recruitable_npc_id)
+            if factory and encounter.recruitable_npc_id not in self.encounter_recruited_npc_ids:
+                npc = factory()
+                # Place NPCs in thematic rooms based on their role/identity
+                npc_room_placement = {
+                    "celestine": 18, # Black Widow → Velvet Chamber (her private seduction room)
+                    "gregori": 16,   # Gravedigger → Cemetery
+                    "esme": 18,      # Hedge Witch → Catacombs (magical)
+                    "roland": 17,    # Warrior → Forge
+                    "petyr": 15,     # Merchant → Castle Gate (meeting place)
+                    "agnes": 16,     # Nun → Cemetery (sacred spaces)
+                    "caius": 17,     # Knight → Forge (armory)
+                }
+                room_idx = npc_room_placement.get(encounter.recruitable_npc_id, 15)
+                self.castle.add_npc_to_room(npc, room_idx)
+                self.encounter_recruited_npc_ids.add(encounter.recruitable_npc_id)
+                npc_name = ENCOUNTER_NPC_NAMES.get(encounter.recruitable_npc_id, npc.name)
+                room_name = self.castle.get_room(room_idx).name
+                self._log(f"★ {npc_name} has arrived in {room_name}.")
+
+        # Room unlock
+        if encounter.unlocks_room >= 0 and encounter.unlocks_room not in self.encounter_unlocked_room_ids:
+            self.castle.unlock_room(encounter.unlocks_room)
+            self.encounter_unlocked_room_ids.add(encounter.unlocks_room)
+            room_name = self.castle.get_room(encounter.unlocks_room).name
+            self._log(f"★ {room_name} is now accessible.")
+
+        self.sound.play_sfx("ambient_explore")
+        self.scene = "encounter"
+
+        # Check win/lose immediately
+        if self.player.is_alert_triggered():
+            self._log("THE HUNTERS HAVE ARRIVED. Your time is up.")
+            self.sound.play_sfx("game_over")
+            self.scene = "game_over"
+        elif self.player.blood <= 0:
+            self._log("Your blood runs dry. You dissolve into the dark.")
+            self.sound.play_sfx("game_over")
+            self.scene = "game_over"
+
+    # ── Encounter scene ───────────────────────────────────────────────────────
+
+    def _draw_encounter(self) -> None:
+        enc = self.active_encounter
+        if enc is None:
+            self.scene = "explore"
+            return
+
+        from items import ITEMS
+        RARITY_COLORS = {"common": (160, 155, 185), "rare": (80, 150, 230), "legendary": GOLD}
+
+        self.screen.fill((5, 0, 12))
+        draw_gothic_border(self.screen, pygame.Rect(10, 10, MAP_W - 20, H - 20), BORDER, 2)
+
+        # Header
+        header = self.font_small.render("OUTSIDE ENCOUNTER", True, MUTED)
+        self.screen.blit(header, (30, 22))
+        draw_pixel_text(self.screen, self.font_title, enc.title, 30, 44, GOLD, shadow=True)
+
+        # Atmospheric description box
+        pygame.draw.rect(self.screen, (20, 13, 35), (20, 96, MAP_W - 40, 130), border_radius=6)
+        pygame.draw.rect(self.screen, BORDER, (20, 96, MAP_W - 40, 130), 1, border_radius=6)
+        desc_lines = textwrap.wrap(enc.description, width=62)
+        for i, line in enumerate(desc_lines[:5]):
+            surf = self.font_body.render(line, True, WHITE)
+            self.screen.blit(surf, (34, 104 + i * 22))
+
+        # Outcome text
+        pygame.draw.line(self.screen, BORDER, (20, 240), (MAP_W - 20, 240), 1)
+        out_lines = textwrap.wrap(enc.outcome, width=62)
+        for i, line in enumerate(out_lines[:3]):
+            surf = self.font_body.render(line, True, (210, 200, 230))
+            self.screen.blit(surf, (30, 250 + i * 22))
+
+        # Rewards panel
+        pygame.draw.rect(self.screen, (18, 12, 30), (20, 330, MAP_W - 40, 200), border_radius=6)
+        pygame.draw.rect(self.screen, BORDER, (20, 330, MAP_W - 40, 200), 1, border_radius=6)
+        rew_label = self.font_ui_b.render("What you found:", True, MUTED)
+        self.screen.blit(rew_label, (34, 340))
+
+        ry = 364
+        if enc.blood_reward > 0:
+            s = self.font_body.render(f"  + {enc.blood_reward} Blood", True, BLOOD_LIGHT)
+            self.screen.blit(s, (34, ry)); ry += 26
+        elif enc.blood_reward < 0:
+            s = self.font_body.render(f"  - {abs(enc.blood_reward)} Blood", True, (220, 80, 80))
+            self.screen.blit(s, (34, ry)); ry += 26
+
+        if enc.xp_reward > 0:
+            s = self.font_body.render(f"  + {enc.xp_reward} XP", True, PURPLE)
+            self.screen.blit(s, (34, ry)); ry += 26
+
+        if enc.suspicion_change > 0:
+            s = self.font_body.render(f"  + {enc.suspicion_change} Suspicion", True, (220, 100, 60))
+            self.screen.blit(s, (34, ry)); ry += 26
+        elif enc.suspicion_change < 0:
+            s = self.font_body.render(f"  - {abs(enc.suspicion_change)} Suspicion", True, GREEN)
+            self.screen.blit(s, (34, ry)); ry += 26
+
+        if enc.item_id:
+            item = ITEMS.get(enc.item_id)
+            if item:
+                col = RARITY_COLORS.get(item.rarity, WHITE)
+                s = self.font_body.render(f"  Item: [{item.rarity.upper()}] {item.name}", True, col)
+                self.screen.blit(s, (34, ry)); ry += 26
+                fl = self.font_small.render(f"  {item.description}", True, MUTED)
+                self.screen.blit(fl, (34, ry)); ry += 20
+
+        if enc.recruitable_npc_id:
+            from encounters import ENCOUNTER_NPC_NAMES
+            npc_name = ENCOUNTER_NPC_NAMES.get(enc.recruitable_npc_id, "A new ally")
+            s = self.font_body.render(f"  New ally: {npc_name}", True, (100, 190, 240))
+            self.screen.blit(s, (34, ry)); ry += 26
+            fl = self.font_small.render("  They have traveled to the Castle Gate.", True, MUTED)
+            self.screen.blit(fl, (34, ry)); ry += 20
+
+        if enc.unlocks_room >= 0:
+            room_name = self.castle.get_room(enc.unlocks_room).name
+            s = self.font_body.render(f"  Unlocked: {room_name}", True, GREEN)
+            self.screen.blit(s, (34, ry)); ry += 26
+            fl = self.font_small.render("  A new area of the castle is now accessible.", True, MUTED)
+            self.screen.blit(fl, (34, ry)); ry += 20
+
+        if (enc.blood_reward == 0 and enc.xp_reward == 0 and enc.suspicion_change == 0
+                and not enc.item_id and not enc.recruitable_npc_id and enc.unlocks_room < 0):
+            s = self.font_body.render("  Nothing. The night gave nothing.", True, MUTED)
+            self.screen.blit(s, (34, ry))
+
+        # Next venture timer hint
+        mins_left = int(VENTURE_COOLDOWN // 60)
+        timer_hint = self.font_small.render(
+            f"Next venture available in {mins_left} minutes.", True, MUTED)
+        self.screen.blit(timer_hint, (30, H - 60))
+
+        cont = self.font_ui.render("[ SPACE / ENTER ] Return to castle", True, MUTED)
+        self.screen.blit(cont, (30, H - 36))
+
+    # ── Item pickup ───────────────────────────────────────────────────────────
+
+    def _try_pickup_item(self, element: dict) -> None:
+        """If element has an uncollected item, add it to player inventory."""
+        item_id = element.get("item_id")
+        if not item_id or element.get("item_taken", False):
+            return
+        from items import ITEMS
+        item = ITEMS.get(item_id)
+        if item and item.id not in self.player.item_ids:
+            msg = self.player.add_item(item)
+            element["item_taken"] = True
+            self._log(msg)
+            self.sound.play_sfx("success")
+
+    # ── Inventory scene ───────────────────────────────────────────────────────
+
+    def _draw_inventory(self) -> None:
+        RARITY_COLORS = {
+            "common":    (160, 155, 185),
+            "rare":      (80,  150, 230),
+            "legendary": GOLD,
+        }
+
+        pygame.draw.rect(self.screen, PANEL_BG, (0, 0, MAP_W, H))
+        draw_gothic_border(self.screen, pygame.Rect(0, 0, MAP_W, H), BORDER, 2)
+        draw_pixel_text(self.screen, self.font_title, "Inventory", 30, 14, GOLD, shadow=True)
+
+        count_surf = self.font_ui.render(
+            f"{len(self.player.inventory)} relic{'s' if len(self.player.inventory) != 1 else ''} carried",
+            True, MUTED)
+        self.screen.blit(count_surf, (30, 50))
+
+        if not self.player.inventory:
+            empty = self.font_body.render(
+                "Your inventory is empty. Examine rooms to uncover relics.", True, MUTED)
+            self.screen.blit(empty, (30, 100))
+        else:
+            y = 72
+            for item in self.player.inventory:
+                color = RARITY_COLORS.get(item.rarity, WHITE)
+                flavor_lines = textwrap.wrap(item.flavor, width=64)
+                card_h = 68 + (18 if len(flavor_lines) > 1 else 0)
+
+                pygame.draw.rect(self.screen, (25, 18, 40),
+                                 (20, y, MAP_W - 40, card_h), border_radius=6)
+                pygame.draw.rect(self.screen, color,
+                                 (20, y, MAP_W - 40, card_h), 1, border_radius=6)
+
+                # Rarity strip on left edge
+                pygame.draw.rect(self.screen, color, (20, y, 4, card_h), border_radius=2)
+
+                # Name + rarity badge
+                badge = self.font_ui_b.render(
+                    f"[{item.rarity.upper()}]  {item.name}", True, color)
+                self.screen.blit(badge, (34, y + 8))
+
+                # Effect description
+                eff = self.font_small.render(item.description, True, WHITE)
+                self.screen.blit(eff, (34, y + 30))
+
+                # Flavor (up to 2 lines)
+                for j, line in enumerate(flavor_lines[:2]):
+                    flav = self.font_small.render(line, True, MUTED)
+                    self.screen.blit(flav, (34, y + 48 + j * 16))
+
+                y += card_h + 6
+                if y > H - 50:
+                    more = self.font_small.render("▼ more items below", True, MUTED)
+                    self.screen.blit(more, (MAP_W // 2 - more.get_width() // 2, H - 48))
+                    break
+
+        pygame.draw.line(self.screen, BORDER, (10, H - 40), (MAP_W - 10, H - 40), 1)
+        esc = self.font_ui.render("[I / ESC] Close", True, MUTED)
+        self.screen.blit(esc, (MAP_W // 2 - esc.get_width() // 2, H - 26))
+
     # ── Sidebar ───────────────────────────────────────────────────────────────
 
     def _draw_sidebar(self) -> None:
@@ -1361,6 +1688,17 @@ class Game:
             q_color = MUTED
         q_surf = self.font_small.render(q_label, True, q_color)
         self.screen.blit(q_surf, (sx + 14, 234))
+
+        # Item count hint
+        item_count = len(self.player.inventory)
+        if item_count > 0:
+            i_label = f"[I] Items ({item_count})"
+            i_color = (160, 155, 200)
+        else:
+            i_label = "[I] Inventory"
+            i_color = MUTED
+        i_surf = self.font_small.render(i_label, True, i_color)
+        self.screen.blit(i_surf, (sx + 14, 252))
 
         # Divider
         pygame.draw.line(self.screen, BORDER, (sx + 10, 186), (W - 10, 186), 1)

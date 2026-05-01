@@ -118,7 +118,7 @@ def _build_quests() -> list[Quest]:
                 check=lambda g: len(g.player.secrets_known) >= 3,
             ),
         ],
-        rewards={"blood": 0, "xp": 25, "suspicion_reduction": 0},
+        rewards={"blood": 0, "xp": 25, "suspicion_reduction": 0, "item_id": "obsidian_eye"},
         status=QuestStatus.ACTIVE,   # also auto-starts
         unlocks_quest="",
     ))
@@ -142,7 +142,7 @@ def _build_quests() -> list[Quest]:
                 check=lambda g: g.player.current_room == 4,
             ),
         ],
-        rewards={"blood": 30, "xp": 50, "suspicion_reduction": 10},
+        rewards={"blood": 30, "xp": 50, "suspicion_reduction": 10, "item_id": "ancient_signet"},
         unlocks_quest="",
     ))
 
@@ -191,7 +191,7 @@ def _build_quests() -> list[Quest]:
                 check=lambda g: "mira_4" in _get_npc_dialogue_seen(g, "Mira the Servant"),
             ),
         ],
-        rewards={"blood": 0, "xp": 20, "suspicion_reduction": 10},
+        rewards={"blood": 0, "xp": 20, "suspicion_reduction": 10, "item_id": "witches_brooch"},
     ))
 
     quests.append(Quest(
@@ -444,6 +444,14 @@ class QuestSystem:
         if quest.unlocks_room >= 0:
             target = game.castle.get_room(quest.unlocks_room)
             target.locked = False
+
+        # Give item reward if present
+        item_id = rewards.get("item_id", "")
+        if item_id:
+            from items import ITEMS
+            item = ITEMS.get(item_id)
+            if item:
+                game.player.add_item(item)
 
         return True
 

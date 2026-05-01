@@ -1,0 +1,18 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python:*)",
+      "Bash(for item in \"blood_ruby\" \"bone_ring\" \"charm_dust\" \"grave_soil\" \"hollow_candle\" \"iron_talisman\" \"mist_veil\" \"obsidian_eye\" \"shadow_coin\")",
+      "Bash(do)",
+      "Bash(if grep -q \"id=\"\"$item\"\"\" /c/Users/itaiag/git/python/vampire_castle/items.py)",
+      "Bash(then)",
+      "Bash(echo:*)",
+      "Bash(else)",
+      "Bash(fi)",
+      "Bash(done)",
+      "Bash(for file in /c/Users/itaiag/git/python/vampire_castle/{castle,game,map_renderer}.py)",
+      "Bash(python3:*)",
+      "Bash(/c/Python313/python:*)"
+    ]
+  }
+}

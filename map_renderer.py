@@ -1,5 +1,5 @@
 """
-map_renderer.py — Castle map overlay.
+map_renderer.py — Castle map overlay (19 rooms total).
 
 Draws all rooms as nodes, connections as lines,
 colours rooms by status (unvisited / visited / claimed / hostile).
@@ -26,6 +26,11 @@ ROOM_POSITIONS = {
     12: (680, 340),  # Treasury         (far right)
     13: (500, 250),  # Winter Garden    (upper right of gallery)
     14: (680, 220),  # Forgotten Vault  (secret, above Treasury)
+    15: (400, 600),  # Castle Gate      (below Grand Entrance, leads outside)
+    16: (560, 600),  # Moonlit Cemetery (east of Gate, unlocked by encounter)
+    17: (240, 600),  # Old Forge            (west of Gate, unlocked by encounter)
+    18: (550, 180),  # Velvet Chamber       (east of Upper Gallery, Celestine's private room)
+    19: (80,  480),  # Ancient Catacombs    (west of Dungeon Wing, unlocked by encounter)
 }
 
 CONNECTIONS = [
@@ -47,6 +52,11 @@ CONNECTIONS = [
     (8, 9),   # Library  <-> Inner Sanctum
     (8, 10),  # Library  <-> Barracks
     (12, 14), # Treasury <-> Forgotten Vault (secret)
+    (0, 15),  # Grand Entrance <-> Castle Gate (outside)
+    (15, 16), # Castle Gate <-> Moonlit Cemetery
+    (15, 17), # Castle Gate <-> Old Forge
+    (5,  19), # Dungeon Wing <-> Ancient Catacombs
+    (3,  18), # Upper Gallery <-> Velvet Chamber
 ]
 
 # Secret passage (shown only if Mira is in court)
@@ -156,6 +166,10 @@ class MapRenderer:
                 "The Treasury":       "Treasury",
                 "The Winter Garden":  "Garden",
                 "The Forgotten Vault": "Vault???",
+                "The Moonlit Cemetery": "Cemetery",
+                "The Old Forge":       "Forge",
+                "The Ancient Catacombs": "Catacombs",
+                "The Velvet Chamber":  "Chamber",
             }
             display_name = short_names.get(name, name)
 
