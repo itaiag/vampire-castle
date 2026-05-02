@@ -111,6 +111,20 @@ NPC_SPRITES = {
         "...P....P...",
         "...P....P...",
     ],
+    "celestine": [        # hooded spy — slim dark cloak, hood up, gold trim
+        "...CCCCCC...",   # hood top
+        "..CCCCCCCC..",   # hood brim
+        "..CC1CC1CC..",   # face in hood shadow
+        "..CC1CCC1C..",
+        "..CCCCCCCI.",    # I = gold eye glint
+        "...CCCCCC...",   # chin
+        "..NNCCCCNN..",   # N = night-black cloak shoulders
+        "..NNCCCCNN..",
+        "..NN.CC.NN..",
+        "...N.CC.N...",
+        "...N....N...",
+        "...N....N...",
+    ],
 }
 
 # Unique NPC character portraits - COMPLETELY DIFFERENT from each other
@@ -212,6 +226,20 @@ NPC_PORTRAITS = {
         ".RRR.B..G.",
         "..RR.B.GG.",
         "....B.GG..",
+    ],
+    "celestine": [  # SPY / SHADOW LADY — hooded, slim, gold-eyed, mysterious
+        "...CCCCCC.",
+        "..CCCCCCCC",
+        "..CC.11.CC",
+        "..CC1I11CC",    # I = gold eye glint
+        "...CCIICC.",
+        "....CCCC..",
+        "..NNCCCCN.",
+        ".NNNCCCCNN",
+        ".NNN.CC.NN",
+        "..NN.CC.N.",
+        "..NN....N.",
+        "...N....N.",
     ],
 }
 

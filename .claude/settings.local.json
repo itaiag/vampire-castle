@@ -12,7 +12,9 @@
       "Bash(done)",
       "Bash(for file in /c/Users/itaiag/git/python/vampire_castle/{castle,game,map_renderer}.py)",
       "Bash(python3:*)",
-      "Bash(/c/Python313/python:*)"
+      "Bash(/c/Python313/python:*)",
+      "Bash(ls:*)",
+      "Bash(/tmp/TRANSFORMATION_SUMMARY.txt:*)"
     ]
   }
 }

@@ -10,57 +10,61 @@ import pygame
 
 
 # Room positions on the map canvas (x, y) — laid out to match the castle structure
+# Reorganized by level: bottom (0-4), dungeon (5), mid (6-9), upper (10-15), top (16-17), special (18-19)
 ROOM_POSITIONS = {
-    0: (400, 480),   # Grand Entrance   (bottom centre)
-    1: (240, 340),   # Old Kitchens     (left mid)
-    2: (560, 340),   # Chapel           (right mid)
-    3: (400, 200),   # Upper Gallery    (top centre)
-    4: (400, 60),    # Throne Room      (very top)
-    5: (240, 480),   # Dungeon Wing     (bottom left)
-    6: (560, 200),   # Alchemist's Lab  (right upper)
-    7: (560, 60),    # East Tower       (top right)
-    8: (240, 200),   # Great Library    (left upper)
-    9: (400, 100),   # Inner Sanctum    (very top, below throne)
-    10: (240, 380),  # Guard Barracks   (left mid-low)
-    11: (120, 340),  # Servants' Quarters (far left)
-    12: (680, 340),  # Treasury         (far right)
-    13: (500, 250),  # Winter Garden    (upper right of gallery)
-    14: (680, 220),  # Forgotten Vault  (secret, above Treasury)
-    15: (400, 600),  # Castle Gate      (below Grand Entrance, leads outside)
-    16: (560, 600),  # Moonlit Cemetery (east of Gate, unlocked by encounter)
-    17: (240, 600),  # Old Forge            (west of Gate, unlocked by encounter)
-    18: (550, 180),  # Velvet Chamber       (east of Upper Gallery, Celestine's private room)
-    19: (80,  480),  # Ancient Catacombs    (west of Dungeon Wing, unlocked by encounter)
+    0: (400, 600),   # Castle Gate       (bottom centre, outside entrance)
+    1: (400, 480),   # Grand Entrance    (bottom centre)
+    2: (560, 600),   # Moonlit Cemetery  (bottom right, outside)
+    3: (240, 600),   # Old Forge         (bottom left, outside)
+    4: (550, 180),   # Velvet Chamber    (near gallery, private room)
+    5: (240, 480),   # Dungeon Wing      (bottom left, below kitchens)
+    6: (240, 340),   # Old Kitchens      (middle left)
+    7: (560, 340),   # Chapel            (middle right)
+    8: (240, 380),   # Guard Barracks    (left mid-low)
+    9: (120, 340),   # Servants' Quarters (far left)
+    10: (400, 200),  # Upper Gallery     (centre hub)
+    11: (240, 200),  # Great Library     (left upper)
+    12: (560, 200),  # Alchemist's Lab   (right upper)
+    13: (560, 60),   # East Tower        (top right)
+    14: (500, 250),  # Winter Garden     (upper right of gallery)
+    15: (80,  480),  # Ancient Catacombs (left, ancestral underground)
+    16: (400, 60),   # Throne Room       (very top centre)
+    17: (400, 100),  # Inner Sanctum     (very top, below throne)
+    18: (680, 340),  # Treasury          (far right)
+    19: (680, 220),  # Forgotten Vault   (secret, above Treasury)
 }
 
 CONNECTIONS = [
-    (0, 1),   # Entrance <-> Kitchens
-    (0, 2),   # Entrance <-> Chapel
-    (1, 3),   # Kitchens <-> Gallery
-    (1, 5),   # Kitchens <-> Dungeon
-    (1, 11),  # Kitchens <-> Servants' Quarters
-    (1, 8),   # Kitchens <-> Library
-    (2, 3),   # Chapel   <-> Gallery
-    (2, 12),  # Chapel   <-> Treasury
-    (3, 4),   # Gallery  <-> Throne Room
-    (3, 6),   # Gallery  <-> Lab
-    (3, 13),  # Gallery  <-> Winter Garden
-    (4, 9),   # Throne Room <-> Inner Sanctum
-    (5, 7),   # Dungeon  <-> East Tower
-    (5, 10),  # Dungeon  <-> Barracks
-    (6, 7),   # Lab      <-> East Tower
-    (8, 9),   # Library  <-> Inner Sanctum
-    (8, 10),  # Library  <-> Barracks
-    (12, 14), # Treasury <-> Forgotten Vault (secret)
-    (0, 15),  # Grand Entrance <-> Castle Gate (outside)
-    (15, 16), # Castle Gate <-> Moonlit Cemetery
-    (15, 17), # Castle Gate <-> Old Forge
-    (5,  19), # Dungeon Wing <-> Ancient Catacombs
-    (3,  18), # Upper Gallery <-> Velvet Chamber
+    (0, 1),   # Gate <-> Entrance
+    (0, 2),   # Gate <-> Cemetery
+    (0, 3),   # Gate <-> Forge
+    (1, 6),   # Entrance <-> Kitchens
+    (1, 7),   # Entrance <-> Chapel
+    (1, 10),  # Entrance <-> Gallery
+    (4, 14),  # Velvet <-> Garden
+    (4, 16),  # Velvet <-> Throne
+    (5, 8),   # Dungeon <-> Barracks
+    (5, 13),  # Dungeon <-> Tower
+    (5, 15),  # Dungeon <-> Catacombs
+    (6, 8),   # Kitchens <-> Barracks
+    (6, 9),   # Kitchens <-> Servants
+    (6, 11),  # Kitchens <-> Library
+    (7, 12),  # Chapel <-> Lab
+    (7, 18),  # Chapel <-> Treasury
+    (8, 11),  # Barracks <-> Library
+    (9, 11),  # Servants <-> Library
+    (10, 12), # Gallery <-> Lab
+    (10, 14), # Gallery <-> Garden
+    (10, 17), # Gallery <-> Sanctum
+    (11, 17), # Library <-> Sanctum
+    (12, 13), # Lab <-> Tower
+    (12, 18), # Lab <-> Treasury
+    (16, 17), # Throne <-> Sanctum
+    (18, 19), # Treasury <-> Vault
 ]
 
 # Secret passage (shown only if Mira is in court)
-SECRET_CONNECTION = (1, 4)   # Kitchens <-> Throne Room hidden passage
+SECRET_CONNECTION = (6, 16)   # Kitchens <-> Throne Room hidden passage
 
 NODE_RADIUS = 36
 FONT_NAME   = "Georgia"

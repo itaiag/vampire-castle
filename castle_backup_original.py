@@ -458,15 +458,88 @@ def make_extra_npcs() -> list:
 
 
 def build_castle() -> Castle:
-    from encounters import ENCOUNTER_NPC_FACTORIES
     base_npcs = make_castle_npcs()
     extra_npcs = make_extra_npcs()
-    celestine = ENCOUNTER_NPC_FACTORIES["celestine"]()
-    npcs = base_npcs + extra_npcs + [celestine]
-    CELESTINE_IDX = len(npcs) - 1   # 12
+    npcs = base_npcs + extra_npcs
 
     rooms = [
-Room(
+        Room(name="The Grand Entrance", description="You drift through the great oak doors, sealed a thousand years ago. Dust motes hang in shafts of moonlight. Twin staircases curve upward into shadow. Beneath your feet, the ancient marble bears your sigil, still sharp despite the centuries. This is where it begins again.", atmosphere="Moonlight cuts through cracked stained glass. Somewhere, footsteps echo.", exits={"north": 3, "west": 1, "east": 2, "south": 15}, npc_indices=[0], feed_available=False, candle_positions=[(80, 60), (620, 60), (80, 350), (620, 350), (300, 250)], room_number=0, interactive_elements=[
+            {"name": "Ancient tapestries", "description": "Faded royal banners hang from the walls, depicting hunts from centuries past. Your own hunts, you realize."},
+            {"name": "Stone sigil", "description": "Your personal seal is carved into the marble floor. It has been preserved exactly as you remember it. Something glints in the carved grooves — an old iron disc bearing your mark.", "item_id": "iron_talisman"},
+        ]),
+        Room(name="The Old Kitchens", description="The smell of tallow and stale bread lingers. Iron pots hang above a cold fireplace. Portraits of your stewards line the walls — generations of loyalty serving Morgana's court. A kitchen maid tends to meals in the background.", atmosphere="The hearth is dead. But the portraits remember.", exits={"south": 0, "north": 5, "west": 11, "east": 8}, npc_indices=[1], feed_available=True, secret_passage=4, candle_positions=[(100, 80), (500, 80), (300, 280)], room_number=1, interactive_elements=[
+            {"name": "Portraits of stewards", "description": "Faces of your loyal servants stare down, generation after generation. Most are long dead. Their descendants still serve."},
+            {"name": "Fireplace", "description": "The hearth is cold and dark. Ash from a thousand fires has settled into the grate."},
+            {"name": "Secret passage", "description": "Behind the portrait of the head steward, you can feel a draft. A hidden passage, perhaps?"},
+        ]),
+        Room(name="The Chapel", description="The pews are warped and split with age. Candlelight flickers across a crumbling altar where sacred objects once sat. Now there is only emptiness and prayer. A priest kneels before the carved stone, his silver cross held to his lips. He does not rise at your approach.", atmosphere="The air tastes of incense and old faith. Something holy recoils from you.", exits={"west": 0, "north": 3, "east": 6}, npc_indices=[2], feed_available=False, candle_positions=[(300, 60), (100, 200), (500, 200), (200, 400), (400, 400)], room_number=2, interactive_elements=[
+            {"name": "Altar", "description": "The altar is cracked and bare. Once it held relics. Now it holds only shadows, memories — and a deep-red gemstone left as an offering.", "item_id": "blood_ruby"},
+            {"name": "Old pews", "description": "The wooden benches are worn smooth by centuries of prayer. Some are splintered, rotting."},
+            {"name": "Silver cross", "description": "Father Dorin clutches a gleaming cross. It catches the candlelight like a beacon against the dark."},
+        ]),
+        Room(name="The Upper Gallery", description="Long windows overlook the courtyard below, showing the world beyond your walls. Between tapestries depicting ancient hunts, your defaced portrait hangs — eyes scratched out by angry hands, yet still somehow watching. A woman in black silk sits reading by candlelight.", atmosphere="Your own face watches from the wall. She watches you watching it.", exits={"south": 0, "west": 1, "east": 2, "north": 4, "northeast": 13, "southeast": 19}, npc_indices=[3], feed_available=False, candle_positions=[(60, 60), (640, 60), (350, 200), (150, 320), (550, 320)], room_number=3, interactive_elements=[
+            {"name": "Your portrait", "description": "Someone scratched out your eyes with fury. Yet somehow, they still seem to see you."},
+            {"name": "Windows", "description": "Beyond the glass, you can see the world you once ruled. Villages. Forests. The vast world that moved on without you."},
+            {"name": "Tapestries", "description": "Ancient hunts are depicted in fading thread. Your hunts, from a time when you ruled openly."},
+        ]),
+        Room(name="The Throne Room", description="Your throne dominates the chamber — draped in the red and gold of Morgana, symbols of her rule defacing the ancient cushions. The seat is empty now, waiting. A figure in crimson silk sits upon an obsidian throne instead, regarding you with cold amusement. Around it, sconces hold candles that burn despite no hand lighting them.", atmosphere="The throne pulses with unfinished business. It remembers you. And waits.", exits={"south": 3, "north": 9, "west": 8}, npc_indices=[7], feed_available=False, candle_positions=[(300, 80), (100, 300), (550, 300), (200, 450), (400, 450)], room_number=4, interactive_elements=[
+            {"name": "Your throne", "description": "It has been desecrated with Morgana's symbols, but underneath, the ancient carved wood remembers your rule."},
+            {"name": "Obsidian throne", "description": "Morgana's dark throne is beautiful and terrible. The stone seems to drink in the light."},
+            {"name": "Self-lighting sconces", "description": "Magic holds these candles aflame without fuel. Morgana's power made manifest."},
+        ]),
+        Room(name="The Dungeon Wing", description="Damp stone and the metallic smell of old blood. Cells line both walls, iron bars green with rust. Most are empty. Some are not. A massive figure works at a bench of cruel tools — sharpening, organizing, preparing. The leather of his apron is stained with decades of work.", atmosphere="Water drips in the dark. Each drop echoes like a scream.", exits={"south": 1, "east": 10, "north": 4, "west": 18}, npc_indices=[4], feed_available=True, candle_positions=[(80, 80), (560, 80), (300, 300)], room_number=5, interactive_elements=[
+            {"name": "Iron cells", "description": "The bars are crusted with rust and worse things. Most cells are mercifully empty."},
+            {"name": "Torture bench", "description": "Tools of pain arranged with meticulous care. Among them, a cold obsidian amulet — not a tool of torture, but of something older and darker.", "item_id": "shadow_amulet"},
+            {"name": "Blood stains", "description": "The stone walls are dark with stains that no amount of scrubbing will remove."},
+        ]),
+        Room(name="The Alchemist's Laboratory", description="Every surface writhes with activity — bubbling alembics, crystalline growths in jars, pages scrawled with formulae no living scholar could read. The air burns your throat. An ancient man spins at your entrance, eyes bright with recognition and hunger.", atmosphere="Chemical fire and strange energy. The air itself tastes wrong.", exits={"west": 3, "north": 7, "south": 2, "southeast": 12}, npc_indices=[5], feed_available=False, candle_positions=[(150, 60), (450, 60), (300, 250), (100, 350), (500, 350)], room_number=6, interactive_elements=[
+            {"name": "Bubbling alembics", "description": "Liquids of impossible colors bubble and steam. Some glow faintly in the dim light."},
+            {"name": "Crystalline growths", "description": "Jars line the shelves containing crystals that shouldn't exist. One amber crystal resonates with strange energy when your hand draws near.", "item_id": "philosophers_stone"},
+            {"name": "Formulae", "description": "Pages covered in cramped handwriting and arcane symbols. Some might be about you."},
+        ]),
+        Room(name="The East Tower", description="A circular room at the tower's peak. Arrow slits cut the walls, and through them, you can see the world outside — villages, forests, the distant sea. Wind howls, carrying the scent of silver and blessed herbs. At the room's centre stands a woman with a crossbow, her stance perfect, her eyes never wavering.", atmosphere="The wind carries silver and determination. This is not chance. This is purpose.", exits={"south": 6, "west": 4, "southwest": 5}, npc_indices=[6], feed_available=False, candle_positions=[(300, 100), (200, 200), (400, 200)], room_number=7, interactive_elements=[
+            {"name": "Arrow slits", "description": "The narrow windows provide perfect sightlines. You could see for miles from here."},
+            {"name": "Silver bolts", "description": "A quiver of blessed ammunition and, beneath it, a carved hunter's mask — worn to hide the face. It muffles the supernatural as well as the features.", "item_id": "hunters_mask"},
+            {"name": "The distant view", "description": "Villages, forests, and the sea beyond. A world that has continued without you."},
+        ]),
+        Room(name="The Great Library", description="Towering shelves stretch to the ceiling, packed with ancient tomes and forbidden knowledge. Candlelight flickers across leather spines. An elderly woman moves carefully between the stacks, cataloging secrets. The air smells of old paper and mystery.", atmosphere="Whispers of forgotten histories. The air is thick with knowledge.", exits={"south": 1, "east": 10, "north": 4, "west": 11}, npc_indices=[10], feed_available=False, candle_positions=[(100, 100), (900, 100), (500, 400)], room_number=8, interactive_elements=[
+            {"name": "Ancient tomes", "description": "Books so old they crumble at a touch. Tucked between volumes on the rhetoric of persuasion: a small ring engraved with words that bend lesser wills.", "item_id": "silver_tongue"},
+            {"name": "Forbidden knowledge", "description": "Lydia has hidden away secrets that would make lesser minds break. They wait here."},
+            {"name": "Hidden sections", "description": "Some shelves seem deliberately obscured. Lydia's true archives, perhaps?"},
+        ]),
+        Room(name="The Inner Sanctum", description="Morgana's personal chambers. Rich furnishings and arcane symbols cover the walls. A crystalline orb pulses with dark magic in the center. Books of spellcraft line obsidian pedestals, protected by wards that crackle with energy.", atmosphere="Power thrums in the air. Magic presses against your skin.", exits={"south": 4, "west": 8, "east": 10}, npc_indices=[], feed_available=False, candle_positions=[(300, 150), (100, 350), (500, 350)], room_number=9, interactive_elements=[
+            {"name": "Crystalline orb", "description": "Dark magic swirls inside. Beside it sits a shred of consecrated cloth that seems to mute the supernatural aura of anything it touches.", "item_id": "mist_veil"},
+            {"name": "Arcane symbols", "description": "The walls are covered with glowing runes. The language of power."},
+            {"name": "Spellcraft books", "description": "Morgana's magical research. Perhaps clues to her weaknesses lie here."},
+        ]),
+        Room(name="The Guard Barracks", description="A stark military chamber filled with armor stands, weapons racks, and sleeping platforms. A stern man in polished armor stands at attention, commanding an invisible squad. The discipline here is absolute.", atmosphere="Order. Duty. The sharp smell of steel and oil.", exits={"south": 5, "west": 8, "east": 9}, npc_indices=[9], feed_available=False, candle_positions=[(100, 150), (600, 150), (350, 350)], room_number=10, interactive_elements=[
+            {"name": "Armor stands", "description": "Rows of gleaming armor, polished to perfection. Theron's discipline evident in every piece."},
+            {"name": "Weapons racks", "description": "Swords, spears, and crossbows hang in perfect order. Ready for anything."},
+            {"name": "Sleeping platforms", "description": "Simple but clean cots where soldiers rest between shifts. Their loyalty is bought with order and pay."},
+        ]),
+        Room(name="The Servants' Quarters", description="A cramped, humble space where servants sleep and work. Simple cots line the walls, and a young maid tends to laundry. The room smells of soap and damp cloth. It's a world apart from the grandeur above.", atmosphere="Weary. Simple. The smell of hard work.", exits={"east": 1, "north": 8}, npc_indices=[8], feed_available=False, candle_positions=[(100, 200), (400, 200)], room_number=11, interactive_elements=[
+            {"name": "Simple cots", "description": "Narrow beds with thin blankets. The servants make do with little."},
+            {"name": "Laundry", "description": "Piles of clothes wait to be cleaned. Never-ending work."},
+            {"name": "Personal items", "description": "Small tokens hidden under pillows. Memories of lives before the castle, perhaps?"},
+        ]),
+        Room(name="The Treasury", description="Shelves glint with gold coins, jewels, and artifacts of immense value. But the wealth feels cold, joyless. This is power quantified and locked away. The air is thick with the scent of coins and magic that keeps it all secure.", atmosphere="Greed hangs in the air. Glittering darkness.", exits={"west": 2, "northwest": 6, "north": 14}, npc_indices=[], feed_available=False, candle_positions=[(200, 200), (600, 200), (400, 400)], room_number=12, interactive_elements=[
+            {"name": "Gold coins", "description": "More wealth than a kingdom could spend. Yet it buys neither life nor love."},
+            {"name": "Jewels and gems", "description": "Rubies, emeralds, sapphires. Artifacts from across the world, collected over centuries."},
+            {"name": "Ancient artifacts", "description": "Objects of power from ages past. Among them, an ancient vessel — still humming with forgotten vitality, like it was made to hold something more than wine.", "item_id": "crimson_chalice"},
+        ]),
+        Room(name="The Winter Garden", description="A greenhouse filled with exotic plants that shouldn't exist in this climate. Moonlight filters through glass panes, illuminating flowers that bloom in darkness. Vines twist around marble columns like serpents.", atmosphere="Strange beauty. Unnatural growth. Something watches from the shadows.", exits={"south": 3, "east": 19}, npc_indices=[], feed_available=False, candle_positions=[(150, 150), (550, 150), (350, 350)], room_number=13, interactive_elements=[
+            {"name": "Exotic plants", "description": "Flowers that should not bloom. Vines that move like they're breathing. All growing in eternal night."},
+            {"name": "Glass panes", "description": "The greenhouse ceiling is made of enchanted glass. It never breaks, never fogs, never lets the cold through."},
+            {"name": "Marble columns", "description": "Covered in dark vines. Halfway up one column, wrapped in a vine like placed there for safekeeping: the sigil of your old house, still radiating dominion.", "item_id": "court_medallion"},
+        ]),
+        Room(name="The Forgotten Vault", description="A dusty, forgotten chamber buried deep behind the Treasury. Cobwebs hang from the ceiling like curtains. In the centre stands a short man in dented armour, gripping a nail sword, radiating total confidence in all directions. He looks like he has been here a while.", atmosphere="Dust. Silence. The unmistakable aura of someone who is absolutely not lost.", exits={"south": 12, "west": 2}, npc_indices=[11], feed_available=False, candle_positions=[(200, 150), (500, 150), (350, 380)], room_number=14, locked=False, interactive_elements=[
+            {"name": "Dusty trophy case", "description": "An empty glass case with Zote's note inside. But on top, partially hidden under centuries of dust: your crown from the first age. It has been waiting.", "item_id": "crown_of_old_night"},
+            {"name": "A map on the wall", "description": "A hand-drawn map of the castle — almost completely wrong. Several rooms are labelled 'Here be something scary (avoided heroically)'."},
+            {"name": "Pile of notes", "description": "Loose papers covered in cramped handwriting. 'Precept 33: If lost, stand still and declare yourself the centre of the world. The world will eventually come to you.'"},
+        ]),
+    ]
+
+    rooms.append(Room(
         name="The Castle Gate",
         description=(
             "The great drawbridge hangs over a dry moat, its chains green with age. "
@@ -475,11 +548,11 @@ Room(
             "From here you can venture out — but the night demands rest between excursions."
         ),
         atmosphere="The boundary between your world and theirs. The forest watches.",
-        exits={"north": 1, "east": 2, "west": 3},
+        exits={"north": 0, "east": 16, "west": 17},
         npc_indices=[],
         feed_available=False,
         candle_positions=[(120, 100), (580, 100), (340, 380)],
-        room_number=0,
+        room_number=15,
         outside_access=True,
         interactive_elements=[
             {
@@ -506,12 +579,11 @@ Room(
             },
         ],
         locked=False,
-    ),
-Room(name="The Grand Entrance", description="You drift through the great oak doors, sealed a thousand years ago. Dust motes hang in shafts of moonlight. Twin staircases curve upward into shadow. Beneath your feet, the ancient marble bears your sigil, still sharp despite the centuries. This is where it begins again.", atmosphere="Moonlight cuts through cracked stained glass. Somewhere, footsteps echo.", exits={"south": 0, "west": 6, "east": 7, "north": 10}, npc_indices=[0], feed_available=False, candle_positions=[(80, 60), (620, 60), (80, 350), (620, 350), (300, 250)], room_number=1, interactive_elements=[
-            {"name": "Ancient tapestries", "description": "Faded royal banners hang from the walls, depicting hunts from centuries past. Your own hunts, you realize."},
-            {"name": "Stone sigil", "description": "Your personal seal is carved into the marble floor. It has been preserved exactly as you remember it. Something glints in the carved grooves — an old iron disc bearing your mark.", "item_id": "iron_talisman"},
-        ]),
-Room(
+    ))
+
+    # ── Rooms unlocked by outside encounters ─────────────────────────────────
+
+    rooms.append(Room(
         name="The Moonlit Cemetery",
         description=(
             "Rows of old graves stretch into the dark, each stone bearing your family's crest. "
@@ -519,11 +591,11 @@ Room(
             "The dead here were loyal to you in life. They remember."
         ),
         atmosphere="Old names on stone. The night holds its breath.",
-        exits={"west": 0},
+        exits={"west": 15},
         npc_indices=[],
         feed_available=False,
         candle_positions=[(100, 200), (600, 200), (350, 420)],
-        room_number=2,
+        room_number=16,
         locked=False,
         interactive_elements=[
             {
@@ -540,8 +612,9 @@ Room(
                 "description": "Someone has been tending these graves. The flowers are only days old.",
             },
         ],
-    ),
-Room(
+    ))
+
+    rooms.append(Room(
         name="The Old Forge",
         description=(
             "The forge is cold but intact: great bellows, iron anvils, a wall of tongs and hammers. "
@@ -549,11 +622,11 @@ Room(
             "Centuries of disuse have left a thick coat of rust, but the bones are sound."
         ),
         atmosphere="Cold iron. Waiting patience. The echo of hammers past.",
-        exits={"east": 0},
+        exits={"east": 15},
         npc_indices=[],
         feed_available=False,
         candle_positions=[(150, 180), (550, 180), (350, 400)],
-        room_number=3,
+        room_number=17,
         locked=False,
         interactive_elements=[
             {
@@ -570,22 +643,22 @@ Room(
                 "description": "Enormous leather bellows, cracked with age. With repair they could breathe life into the forge again.",
             },
         ],
-    ),
-Room(
+    ))
+
+    velvet_chamber = Room(
         name="The Velvet Chamber",
         description=(
             "A room of elegant shadows and dark luxury. Velvet drapes frame tall windows "
             "that overlook the castle grounds. A low sofa of deepest crimson sits before a fireplace "
             "where flames dance without heat. On every surface: jewels, stolen treasures, "
-            "secrets collected like coins. A woman reclines in the shadows, watching you with gold eyes "
-            "that miss nothing. This is where deals are made. Where wills are bent."
+            "secrets collected like coins. This is where deals are made. Where wills are bent."
         ),
         atmosphere="The scent of perfume and candlewax. Predator and prey, blurred.",
-        exits={"southwest": 14, "northwest": 16},
+        exits={"west": 3},
         npc_indices=[],
         feed_available=False,
         candle_positions=[(120, 150), (620, 150), (350, 380)],
-        room_number=4,
+        room_number=19,
         locked=False,
         interactive_elements=[
             {
@@ -601,58 +674,10 @@ Room(
                 "description": "Dozens of mirrors reflecting the room endlessly. She watches everything. She is always watching.",
             },
         ],
-    ),
-Room(name="The Dungeon Wing", description="Damp stone and the metallic smell of old blood. Cells line both walls, iron bars green with rust. Most are empty. Some are not. A massive figure works at a bench of cruel tools — sharpening, organizing, preparing. The leather of his apron is stained with decades of work.", atmosphere="Water drips in the dark. Each drop echoes like a scream.", exits={"north": 8, "west": 15, "northeast": 13}, npc_indices=[4], feed_available=True, candle_positions=[(80, 80), (560, 80), (300, 300)], room_number=5, interactive_elements=[
-            {"name": "Iron cells", "description": "The bars are crusted with rust and worse things. Most cells are mercifully empty."},
-            {"name": "Torture bench", "description": "Tools of pain arranged with meticulous care. Among them, a cold obsidian amulet — not a tool of torture, but of something older and darker.", "item_id": "shadow_amulet"},
-            {"name": "Blood stains", "description": "The stone walls are dark with stains that no amount of scrubbing will remove."},
-        ]),
-Room(name="The Old Kitchens", description="The smell of tallow and stale bread lingers. Iron pots hang above a cold fireplace. Portraits of your stewards line the walls — generations of loyalty serving Morgana's court. A kitchen maid tends to meals in the background.", atmosphere="The hearth is dead. But the portraits remember.", exits={"east": 1, "west": 9, "south": 8, "north": 11}, npc_indices=[1], feed_available=True, secret_passage=16, candle_positions=[(100, 80), (500, 80), (300, 280)], room_number=6, interactive_elements=[
-            {"name": "Portraits of stewards", "description": "Faces of your loyal servants stare down, generation after generation. Most are long dead. Their descendants still serve."},
-            {"name": "Fireplace", "description": "The hearth is cold and dark. Ash from a thousand fires has settled into the grate."},
-            {"name": "Secret passage", "description": "Behind the portrait of the head steward, you can feel a draft. A hidden passage, perhaps?"},
-        ]),
-Room(name="The Chapel", description="The pews are warped and split with age. Candlelight flickers across a crumbling altar where sacred objects once sat. Now there is only emptiness and prayer. A priest kneels before the carved stone, his silver cross held to his lips. He does not rise at your approach.", atmosphere="The air tastes of incense and old faith. Something holy recoils from you.", exits={"west": 1, "east": 18, "north": 12}, npc_indices=[2], feed_available=False, candle_positions=[(300, 60), (100, 200), (500, 200), (200, 400), (400, 400)], room_number=7, interactive_elements=[
-            {"name": "Altar", "description": "The altar is cracked and bare. Once it held relics. Now it holds only shadows, memories — and a deep-red gemstone left as an offering.", "item_id": "blood_ruby"},
-            {"name": "Old pews", "description": "The wooden benches are worn smooth by centuries of prayer. Some are splintered, rotting."},
-            {"name": "Silver cross", "description": "Father Dorin clutches a gleaming cross. It catches the candlelight like a beacon against the dark."},
-        ]),
-Room(name="The Guard Barracks", description="A stark military chamber filled with armor stands, weapons racks, and sleeping platforms. A stern man in polished armor stands at attention, commanding an invisible squad. The discipline here is absolute.", atmosphere="Order. Duty. The sharp smell of steel and oil.", exits={"north": 6, "south": 5, "west": 11}, npc_indices=[9], feed_available=False, candle_positions=[(100, 150), (600, 150), (350, 350)], room_number=8, interactive_elements=[
-            {"name": "Armor stands", "description": "Rows of gleaming armor, polished to perfection. Theron's discipline evident in every piece."},
-            {"name": "Weapons racks", "description": "Swords, spears, and crossbows hang in perfect order. Ready for anything."},
-            {"name": "Sleeping platforms", "description": "Simple but clean cots where soldiers rest between shifts. Their loyalty is bought with order and pay."},
-        ]),
-Room(name="The Servants' Quarters", description="A cramped, humble space where servants sleep and work. Simple cots line the walls, and a young maid tends to laundry. The room smells of soap and damp cloth. It's a world apart from the grandeur above.", atmosphere="Weary. Simple. The smell of hard work.", exits={"east": 6, "northeast": 11}, npc_indices=[8], feed_available=False, candle_positions=[(100, 200), (400, 200)], room_number=9, interactive_elements=[
-            {"name": "Simple cots", "description": "Narrow beds with thin blankets. The servants make do with little."},
-            {"name": "Laundry", "description": "Piles of clothes wait to be cleaned. Never-ending work."},
-            {"name": "Personal items", "description": "Small tokens hidden under pillows. Memories of lives before the castle, perhaps?"},
-        ]),
-Room(name="The Upper Gallery", description="Long windows overlook the courtyard below, showing the world beyond your walls. Between tapestries depicting ancient hunts, your defaced portrait hangs — eyes scratched out by angry hands, yet still somehow watching. A woman in black silk sits reading by candlelight.", atmosphere="Your own face watches from the wall. She watches you watching it.", exits={"south": 1, "north": 17, "east": 12, "southeast": 14}, npc_indices=[3], feed_available=False, candle_positions=[(60, 60), (640, 60), (350, 200), (150, 320), (550, 320)], room_number=10, interactive_elements=[
-            {"name": "Your portrait", "description": "Someone scratched out your eyes with fury. Yet somehow, they still seem to see you."},
-            {"name": "Windows", "description": "Beyond the glass, you can see the world you once ruled. Villages. Forests. The vast world that moved on without you."},
-            {"name": "Tapestries", "description": "Ancient hunts are depicted in fading thread. Your hunts, from a time when you ruled openly."},
-        ]),
-Room(name="The Great Library", description="Towering shelves stretch to the ceiling, packed with ancient tomes and forbidden knowledge. Candlelight flickers across leather spines. An elderly woman moves carefully between the stacks, cataloging secrets. The air smells of old paper and mystery.", atmosphere="Whispers of forgotten histories. The air is thick with knowledge.", exits={"south": 6, "southwest": 9, "east": 8, "northeast": 17}, npc_indices=[10], feed_available=False, candle_positions=[(100, 100), (900, 100), (500, 400)], room_number=11, interactive_elements=[
-            {"name": "Ancient tomes", "description": "Books so old they crumble at a touch. Tucked between volumes on the rhetoric of persuasion: a small ring engraved with words that bend lesser wills.", "item_id": "silver_tongue"},
-            {"name": "Forbidden knowledge", "description": "Lydia has hidden away secrets that would make lesser minds break. They wait here."},
-            {"name": "Hidden sections", "description": "Some shelves seem deliberately obscured. Lydia's true archives, perhaps?"},
-        ]),
-Room(name="The Alchemist's Laboratory", description="Every surface writhes with activity — bubbling alembics, crystalline growths in jars, pages scrawled with formulae no living scholar could read. The air burns your throat. An ancient man spins at your entrance, eyes bright with recognition and hunger.", atmosphere="Chemical fire and strange energy. The air itself tastes wrong.", exits={"west": 10, "north": 13, "south": 7, "southeast": 18}, npc_indices=[5], feed_available=False, candle_positions=[(150, 60), (450, 60), (300, 250), (100, 350), (500, 350)], room_number=12, interactive_elements=[
-            {"name": "Bubbling alembics", "description": "Liquids of impossible colors bubble and steam. Some glow faintly in the dim light."},
-            {"name": "Crystalline growths", "description": "Jars line the shelves containing crystals that shouldn't exist. One amber crystal resonates with strange energy when your hand draws near.", "item_id": "philosophers_stone"},
-            {"name": "Formulae", "description": "Pages covered in cramped handwriting and arcane symbols. Some might be about you."},
-        ]),
-Room(name="The East Tower", description="A circular room at the tower's peak. Arrow slits cut the walls, and through them, you can see the world outside — villages, forests, the distant sea. Wind howls, carrying the scent of silver and blessed herbs. At the room's centre stands a woman with a crossbow, her stance perfect, her eyes never wavering.", atmosphere="The wind carries silver and determination. This is not chance. This is purpose.", exits={"south": 12, "southwest": 5}, npc_indices=[6], feed_available=False, candle_positions=[(300, 100), (200, 200), (400, 200)], room_number=13, interactive_elements=[
-            {"name": "Arrow slits", "description": "The narrow windows provide perfect sightlines. You could see for miles from here."},
-            {"name": "Silver bolts", "description": "A quiver of blessed ammunition and, beneath it, a carved hunter's mask — worn to hide the face. It muffles the supernatural as well as the features.", "item_id": "hunters_mask"},
-            {"name": "The distant view", "description": "Villages, forests, and the sea beyond. A world that has continued without you."},
-        ]),
-Room(name="The Winter Garden", description="A greenhouse filled with exotic plants that shouldn't exist in this climate. Moonlight filters through glass panes, illuminating flowers that bloom in darkness. Vines twist around marble columns like serpents.", atmosphere="Strange beauty. Unnatural growth. Something watches from the shadows.", exits={"northwest": 10, "northeast": 4}, npc_indices=[], feed_available=False, candle_positions=[(150, 150), (550, 150), (350, 350)], room_number=14, interactive_elements=[
-            {"name": "Exotic plants", "description": "Flowers that should not bloom. Vines that move like they're breathing. All growing in eternal night."},
-            {"name": "Glass panes", "description": "The greenhouse ceiling is made of enchanted glass. It never breaks, never fogs, never lets the cold through."},
-            {"name": "Marble columns", "description": "Covered in dark vines. Halfway up one column, wrapped in a vine like placed there for safekeeping: the sigil of your old house, still radiating dominion.", "item_id": "court_medallion"},
-        ]),
-Room(
+    )
+    rooms.append(velvet_chamber)
+
+    rooms.append(Room(
         name="The Ancient Catacombs",
         description=(
             "Stone steps descend into a passage that predates the castle itself. "
@@ -665,7 +690,7 @@ Room(
         npc_indices=[],
         feed_available=False,
         candle_positions=[(80, 180), (620, 180), (350, 450)],
-        room_number=15,
+        room_number=18,
         locked=False,
         interactive_elements=[
             {
@@ -682,31 +707,6 @@ Room(
                 "description": "The walls are covered in writing that predates your own era. History even you did not know.",
             },
         ],
-    ),
-Room(name="The Throne Room", description="Your throne dominates the chamber — draped in the red and gold of Morgana, symbols of her rule defacing the ancient cushions. The seat is empty now, waiting. A figure in crimson silk sits upon an obsidian throne instead, regarding you with cold amusement. Around it, sconces hold candles that burn despite no hand lighting them.", atmosphere="The throne pulses with unfinished business. It remembers you. And waits.", exits={"south": 17, "southeast": 4}, npc_indices=[7], feed_available=False, candle_positions=[(300, 80), (100, 300), (550, 300), (200, 450), (400, 450)], room_number=16, interactive_elements=[
-            {"name": "Your throne", "description": "It has been desecrated with Morgana's symbols, but underneath, the ancient carved wood remembers your rule."},
-            {"name": "Obsidian throne", "description": "Morgana's dark throne is beautiful and terrible. The stone seems to drink in the light."},
-            {"name": "Self-lighting sconces", "description": "Magic holds these candles aflame without fuel. Morgana's power made manifest."},
-        ]),
-Room(name="The Inner Sanctum", description="Morgana's personal chambers. Rich furnishings and arcane symbols cover the walls. A crystalline orb pulses with dark magic in the center. Books of spellcraft line obsidian pedestals, protected by wards that crackle with energy.", atmosphere="Power thrums in the air. Magic presses against your skin.", exits={"south": 10, "north": 16, "southwest": 11}, npc_indices=[], feed_available=False, candle_positions=[(300, 150), (100, 350), (500, 350)], room_number=17, interactive_elements=[
-            {"name": "Crystalline orb", "description": "Dark magic swirls inside. Beside it sits a shred of consecrated cloth that seems to mute the supernatural aura of anything it touches.", "item_id": "mist_veil"},
-            {"name": "Arcane symbols", "description": "The walls are covered with glowing runes. The language of power."},
-            {"name": "Spellcraft books", "description": "Morgana's magical research. Perhaps clues to her weaknesses lie here."},
-        ]),
-Room(name="The Treasury", description="Shelves glint with gold coins, jewels, and artifacts of immense value. But the wealth feels cold, joyless. This is power quantified and locked away. The air is thick with the scent of coins and magic that keeps it all secure.", atmosphere="Greed hangs in the air. Glittering darkness.", exits={"west": 7, "northwest": 12, "north": 19}, npc_indices=[], feed_available=False, candle_positions=[(200, 200), (600, 200), (400, 400)], room_number=18, interactive_elements=[
-            {"name": "Gold coins", "description": "More wealth than a kingdom could spend. Yet it buys neither life nor love."},
-            {"name": "Jewels and gems", "description": "Rubies, emeralds, sapphires. Artifacts from across the world, collected over centuries."},
-            {"name": "Ancient artifacts", "description": "Objects of power from ages past. Among them, an ancient vessel — still humming with forgotten vitality, like it was made to hold something more than wine.", "item_id": "crimson_chalice"},
-        ]),
-Room(name="The Forgotten Vault", description="A dusty, forgotten chamber buried deep behind the Treasury. Cobwebs hang from the ceiling like curtains. In the centre stands a short man in dented armour, gripping a nail sword, radiating total confidence in all directions. He looks like he has been here a while.", atmosphere="Dust. Silence. The unmistakable aura of someone who is absolutely not lost.", exits={"south": 18}, npc_indices=[11], feed_available=False, candle_positions=[(200, 150), (500, 150), (350, 380)], room_number=19, locked=False, interactive_elements=[
-            {"name": "Dusty trophy case", "description": "An empty glass case with Zote's note inside. But on top, partially hidden under centuries of dust: your crown from the first age. It has been waiting.", "item_id": "crown_of_old_night"},
-            {"name": "A map on the wall", "description": "A hand-drawn map of the castle — almost completely wrong. Several rooms are labelled 'Here be something scary (avoided heroically)'."},
-            {"name": "Pile of notes", "description": "Loose papers covered in cramped handwriting. 'Precept 33: If lost, stand still and declare yourself the centre of the world. The world will eventually come to you.'"},
-        ]),
-    ]
-
-    # Place Celestine in the Velvet Chamber (room 4)
-    VELVET_CHAMBER = 4
-    rooms[VELVET_CHAMBER].npc_indices.append(CELESTINE_IDX)
+    ))
 
     return Castle(rooms=rooms, npcs=npcs)

@@ -50,6 +50,14 @@ W, H = 1024, 768
 SIDEBAR_W = 260
 MAP_W = W - SIDEBAR_W
 
+# ── Direction helpers ─────────────────────────────────────────────────────────
+_OPPOSITE_DIR = {
+    "north": "south", "south": "north",
+    "east": "west",   "west": "east",
+    "northeast": "southwest", "southwest": "northeast",
+    "northwest": "southeast", "southeast": "northwest",
+}
+
 # ── NPC portrait key mapping ───────────────────────────────────────────────
 NPC_PORTRAIT_KEYS = {
     "Aldric the Guard": "aldric",
@@ -122,7 +130,7 @@ class Game:
         # Outside venture system
         self.last_venture_time = 0.0   # epoch seconds; 0 = never ventured (available immediately)
         self.active_encounter = None   # current Encounter object while in "encounter" scene
-        self.encounter_recruited_npc_ids: set = set()   # recruitable_npc_id values already added
+        self.encounter_recruited_npc_ids: set = {"celestine"}   # celestine starts in the castle
         self.encounter_unlocked_room_ids: set = set()   # room indices already unlocked via encounters
         self.completed_encounter_ids: set = set()       # encounter IDs already experienced (no repeats)
 
@@ -130,6 +138,18 @@ class Game:
         self.px = MAP_W // 2
         self.py = H // 2
         self.move_speed = 180        # pixels per second
+
+        # ── Celestine playable state ──────────────────────────────────────────
+        self.cel_room = 4            # starts in Velvet Chamber
+        self.cel_px = float(MAP_W // 2)
+        self.cel_py = float(H // 2)
+        self.cel_affinity = 50       # 0-100; her mood/energy (not blood)
+        self.cel_talk_npc = None     # NPC she is currently talking to
+        # Celestine walk transition state (mirrors player walk state)
+        self.cel_walking = False
+        self.cel_walk_dir = None
+        self.cel_walk_target = None
+        self.cel_walk_prog = 0.0
 
         # Fonts
         self.font_title  = pygame.font.SysFont("Georgia", 28, bold=True)
@@ -205,8 +225,32 @@ class Game:
                 else:
                     self.scene = "interact"
         elif self.scene == "court":
-            if key == pygame.K_ESCAPE:
+            # Number keys 1-9 to select NPCs in court
+            mapping = {
+                pygame.K_1: 0, pygame.K_2: 1, pygame.K_3: 2,
+                pygame.K_4: 3, pygame.K_5: 4, pygame.K_6: 5,
+                pygame.K_7: 6, pygame.K_8: 7, pygame.K_9: 8,
+            }
+            if key in mapping:
+                idx = mapping[key]
+                if idx < len(self.player.court):
+                    self.active_npc = self.player.court[idx]
+                    self.dialogue_text = self.active_npc.greeting
+                    self.convo_history = []
+                    self.scene = "interact"
+            elif key == pygame.K_c:
+                # [C] — control Celestine if she is in your court
+                cel = self._get_celestine()
+                if cel and cel.is_controllable():
+                    self.scene = "celestine"
+                else:
+                    self._log("Celestine is not in your court yet.")
+            elif key == pygame.K_ESCAPE:
                 self.scene = "explore"
+        elif self.scene == "celestine":
+            self._celestine_key(key)
+        elif self.scene == "celestine_talk":
+            self._celestine_talk_key(key)
         elif self.scene == "inventory":
             if key in (pygame.K_ESCAPE, pygame.K_i):
                 self.scene = "explore"
@@ -293,17 +337,22 @@ class Game:
         elif key == pygame.K_TAB:
             self.scene = "court"
 
-        # Arrow keys / WASD — move between rooms
-        elif key in (pygame.K_UP, pygame.K_w):
-            self._move("north")
-        elif key in (pygame.K_DOWN, pygame.K_s):
-            self._move("south")
-        elif key in (pygame.K_LEFT, pygame.K_a):
-            self._move("west")
-        elif key in (pygame.K_RIGHT, pygame.K_d):
-            self._move("east")
+        # Number keys — teleport to numbered exit (shortcut; walking also works)
+        else:
+            num_to_exit = {
+                pygame.K_1: 0, pygame.K_2: 1, pygame.K_3: 2,
+                pygame.K_4: 3, pygame.K_5: 4, pygame.K_6: 5,
+                pygame.K_7: 6, pygame.K_8: 7, pygame.K_9: 8,
+            }
+            if key in num_to_exit and not self.is_walking:
+                room = self.castle.get_room(self.player.current_room)
+                exit_dirs = list(room.exits.keys())
+                idx = num_to_exit[key]
+                if idx < len(exit_dirs):
+                    self._move(exit_dirs[idx])
 
     def _move(self, direction: str) -> None:
+        """Trigger a room transition via the numbered-exit shortcut."""
         room = self.castle.get_room(self.player.current_room)
         if direction in room.exits:
             target_idx = room.exits[direction]
@@ -312,9 +361,7 @@ class Game:
                 self._log("A sealed door blocks the way. Something must be done to open it.")
                 self._log("Check your Quest Journal — a quest may unlock this passage.")
                 return
-            # Clear examined element when moving
             self.examined_element = None
-            # Start walking to the exit instead of teleporting
             self.is_walking = True
             self.walk_direction = direction
             self.walk_target_room = target_idx
@@ -345,7 +392,8 @@ class Game:
             return
         num_map = {
             pygame.K_1: 0, pygame.K_2: 1, pygame.K_3: 2,
-            pygame.K_4: 3, pygame.K_5: 4,
+            pygame.K_4: 3, pygame.K_5: 4, pygame.K_6: 5,
+            pygame.K_7: 6, pygame.K_8: 7, pygame.K_9: 8,
         }
         if key in num_map:
             idx = num_map[key]
@@ -520,50 +568,52 @@ class Game:
         if self.quest_notification_timer > 0:
             self.quest_notification_timer -= dt
 
+        if self.scene in ("celestine", "celestine_talk"):
+            if self.scene == "celestine":
+                self._update_celestine(dt)
+            return
+
         if self.scene != "explore":
             return
 
-        # Handle walking animation
+        # Transition animation: fade out, switch room, fade in
         if self.is_walking:
-            self.walk_progress += dt * 1.5  # Takes ~0.67 seconds to cross room
-
-            # Calculate target exit position based on direction
-            center_x, center_y = MAP_W // 2, H // 2
-            exit_x, exit_y = center_x, center_y
-
-            if self.walk_direction == "north":
-                exit_y = 40
-            elif self.walk_direction == "south":
-                exit_y = H - 40
-            elif self.walk_direction == "west":
-                exit_x = 40
-            elif self.walk_direction == "east":
-                exit_x = MAP_W - 40
-
-            # Interpolate position from center to exit
-            self.px = center_x + (exit_x - center_x) * min(1.0, self.walk_progress)
-            self.py = center_y + (exit_y - center_y) * min(1.0, self.walk_progress)
-
-            # When walk completes, transition to new room
-            if self.walk_progress >= 1.0:
+            self.walk_progress += dt * 3.0  # fade takes ~0.33s each way
+            if self.walk_progress >= 1.0 and self.walk_target_room is not None:
+                # Switch room
                 self.player.current_room = self.walk_target_room
                 self.visited_rooms.add(self.player.current_room)
                 new_room = self.castle.get_room(self.player.current_room)
                 self._log(f"You enter: {new_room.name}")
 
-                # Reset walking state and reposition player
-                self.is_walking = False
-                self.walk_direction = None
+                # Spawn just inside the entry door (70px inward from the portal)
+                opp = _OPPOSITE_DIR.get(self.walk_direction, "center")
+                rx, ry, rw, rh = self._get_portal_rect(opp)
+                cx = float(rx + rw // 2)
+                cy = float(ry + rh // 2)
+                _inward = {
+                    "north": (0,  70), "south": (0,  -70),
+                    "east":  (-70, 0), "west":  (70,   0),
+                    "northeast": (-50,  70), "northwest": (50,  70),
+                    "southeast": (-50, -70), "southwest": (50, -70),
+                }
+                ix, iy = _inward.get(opp, (0, 0))
+                self.px = max(40, min(MAP_W - 40, cx + ix))
+                self.py = max(40, min(H - 40,     cy + iy))
+
+                # Begin fade-in
                 self.walk_target_room = None
                 self.walk_progress = 0.0
-                self.px = MAP_W // 2
-                self.py = H // 2
-
-                # Check quest triggers after room transition
                 self._check_quests()
+
+            elif self.walk_progress >= 1.0 and self.walk_target_room is None:
+                # Fade-in done
+                self.is_walking = False
+                self.walk_direction = None
+                self.walk_progress = 0.0
             return
 
-        # Normal exploration movement
+        # Free movement — WASD / arrow keys
         keys = pygame.key.get_pressed()
         dx = dy = 0
         if keys[pygame.K_a] or keys[pygame.K_LEFT]:  dx = -1
@@ -571,22 +621,67 @@ class Game:
         if keys[pygame.K_w] or keys[pygame.K_UP]:    dy = -1
         if keys[pygame.K_s] or keys[pygame.K_DOWN]:  dy = 1
 
+        if dx != 0 and dy != 0:          # normalise diagonal speed
+            dx *= 0.707
+            dy *= 0.707
+
         self.px = max(20, min(MAP_W - 20, self.px + dx * self.move_speed * dt))
         self.py = max(20, min(H - 20,     self.py + dy * self.move_speed * dt))
+
+        # Portal collision — touching a door triggers room transition
+        room = self.castle.get_room(self.player.current_room)
+        player_rect = pygame.Rect(int(self.px) - 14, int(self.py) - 14, 28, 28)
+        for direction, target_idx in room.exits.items():
+            rx, ry, rw, rh = self._get_portal_rect(direction)
+            if player_rect.colliderect(pygame.Rect(rx, ry, rw, rh)):
+                target_room = self.castle.get_room(target_idx)
+                if target_room.locked:
+                    self._log("A sealed door blocks the way.")
+                    # Push player back slightly so they don't get stuck
+                    self.px = max(20, min(MAP_W - 20, self.px - dx * 8))
+                    self.py = max(20, min(H - 20,     self.py - dy * 8))
+                else:
+                    self.examined_element = None
+                    self.is_walking = True
+                    self.walk_direction = direction
+                    self.walk_target_room = target_idx
+                    self.walk_progress = 0.0
+                break
+
+    # ── Portal geometry ────────────────────────────────────────────────────────
+
+    def _get_portal_rect(self, direction: str):
+        """Return (x, y, w, h) of the portal zone for *direction* in the current room."""
+        if direction == "north":
+            return MAP_W // 2 - 25, 10, 50, 50
+        elif direction == "south":
+            return MAP_W // 2 - 25, H - 60, 50, 50
+        elif direction == "west":
+            return 10, H // 2 - 25, 50, 50
+        elif direction == "east":
+            return MAP_W - 60, H // 2 - 25, 50, 50
+        elif direction == "northeast":
+            return MAP_W - 60, 10, 50, 50
+        elif direction == "northwest":
+            return 10, 10, 50, 50
+        elif direction == "southeast":
+            return MAP_W - 60, H - 60, 50, 50
+        elif direction == "southwest":
+            return 10, H - 60, 50, 50
+        else:
+            # "center" or unknown — middle of room
+            return MAP_W // 2 - 25, H // 2 - 25, 50, 50
 
     # ── Draw exit portals ─────────────────────────────────────────────────────
 
     def _draw_exit_portal(self, direction: str, target_room_idx: int) -> None:
         """Draw a glowing portal/door indicating an exit. Locked rooms show a padlock style."""
-        if direction == "north":
-            x, y = MAP_W // 2 - 20, 20
-        elif direction == "south":
-            x, y = MAP_W // 2 - 20, H - 50
-        elif direction == "west":
-            x, y = 20, H // 2 - 20
-        elif direction == "east":
-            x, y = MAP_W - 60, H // 2 - 20
-        else:
+        rect = self._get_portal_rect(direction)
+        if rect is None:
+            return
+        x, y = rect[0], rect[1]
+        if direction not in ("north", "south", "east", "west",
+                              "northeast", "northwest", "southeast", "southwest"):
             return
 
         target_room = self.castle.get_room(target_room_idx)
@@ -611,7 +706,10 @@ class Game:
             self.screen.blit(portal_glow, (x - 5, y - 5))
             pygame.draw.rect(self.screen, (150, 100, 180), (x, y, 50, 50), 3)
             pygame.draw.rect(self.screen, (120, 60, 160), (x + 3, y + 3, 44, 44), 1)
-            dir_text = direction[0].upper()
+            abbrev = {"north": "N", "south": "S", "east": "E", "west": "W",
+                      "northeast": "NE", "northwest": "NW",
+                      "southeast": "SE", "southwest": "SW"}
+            dir_text = abbrev.get(direction, direction[0].upper())
             dir_surf = self.font_ui_b.render(dir_text, True, GOLD)
             self.screen.blit(dir_surf, (x + 25 - dir_surf.get_width() // 2,
                                          y + 25 - dir_surf.get_height() // 2))
@@ -623,6 +721,10 @@ class Game:
 
         if self.scene == "explore":
             self._draw_explore()
+        elif self.scene == "celestine":
+            self._draw_celestine_explore()
+        elif self.scene == "celestine_talk":
+            self._draw_celestine_talk()
         elif self.scene == "interact":
             self._draw_interact()
         elif self.scene == "dialogue":
@@ -643,6 +745,26 @@ class Game:
             self._draw_game_over()
 
         self._draw_sidebar()
+
+        # Room transition fade overlay
+        if self.scene == "celestine" and self.cel_walking:
+            if self.cel_walk_target is not None:
+                alpha = int(255 * min(1.0, self.cel_walk_prog))
+            else:
+                alpha = int(255 * max(0.0, 1.0 - self.cel_walk_prog))
+            fade = pygame.Surface((MAP_W, H), pygame.SRCALPHA)
+            fade.fill((0, 0, 0, alpha))
+            self.screen.blit(fade, (0, 0))
+
+        if self.scene == "explore" and self.is_walking:
+            # fade out then fade in: progress 0→1 = fade out, then 0→1 = fade in
+            if self.walk_target_room is not None:
+                alpha = int(255 * min(1.0, self.walk_progress))   # fading out
+            else:
+                alpha = int(255 * max(0.0, 1.0 - self.walk_progress))  # fading in
+            fade = pygame.Surface((MAP_W, H), pygame.SRCALPHA)
+            fade.fill((0, 0, 0, alpha))
+            self.screen.blit(fade, (0, 0))
 
         if self.show_map:
             self.map_renderer.draw(self.castle, self.player, self.visited_rooms)
@@ -722,16 +844,18 @@ class Game:
             v_surf = self.font_ui_b.render(v_text, True, v_color)
             self.screen.blit(v_surf, (30, H - 208))
 
-        # Exits text hint
+        # Exits text hint — numbered so player can press 1-9 to travel
         exits = room.exits
         hint_y = H - 48 if not self.examined_element else H - 48
-        exits_text = "Exits: " + ", ".join(f"{d.upper()}" for d in exits)
+        exits_text = "Exits: " + "  ".join(
+            f"[{i+1}] {d.upper()}" for i, d in enumerate(exits)
+        )
         exits_surf = self.font_ui.render(exits_text, True, MUTED)
         self.screen.blit(exits_surf, (20, hint_y))
 
         # Controls hint
         venture_hint = "   [V] Venture Outside" if room.outside_access else ""
-        hints = f"[WASD] Move   [E] Interact   [F] Feed   [X] Examine   [TAB] Court   [Q] Journal   [I] Items   [M] Map{venture_hint}"
+        hints = f"[WASD] Walk · touch door to enter   [1-9] Quick exit   [E] Talk   [F] Feed   [X] Examine   [TAB] Court   [M] Map{venture_hint}"
         hint_surf = self.font_ui.render(hints, True, MUTED)
         self.screen.blit(hint_surf, (20, H - 26))
 
@@ -1047,6 +1171,324 @@ class Game:
                 cost = self.font_small.render(f"Cost: {ab.active_cost} blood", True, BLOOD_LIGHT)
                 self.screen.blit(cost, (36, oy + 90))
 
+    # ── Celestine playable mechanics ──────────────────────────────────────────
+
+    def _get_celestine(self):
+        """Return Celestine's NPC object if she exists in the castle, else None."""
+        for npc in self.castle.npcs:
+            if "Celestine" in npc.name:
+                return npc
+        return None
+
+    # ── Celestine explore input ────────────────────────────────────────────────
+
+    def _celestine_key(self, key: int) -> None:
+        if key == pygame.K_ESCAPE or key == pygame.K_TAB:
+            self.scene = "court"
+            return
+        if self.cel_walking:
+            return
+
+        # [E] Approach nearest NPC and open talk scene
+        if key == pygame.K_e:
+            npcs = self.castle.get_npcs_in_room(self.cel_room)
+            visible = [n for n in npcs if n.state != NPCState.FLED
+                       and "Celestine" not in n.name]
+            if visible:
+                self.cel_talk_npc = visible[0]
+                self.scene = "celestine_talk"
+            else:
+                self._log("Celestine: No one here to talk to.")
+
+        # Number keys — quick exit
+        else:
+            num_to_exit = {
+                pygame.K_1: 0, pygame.K_2: 1, pygame.K_3: 2,
+                pygame.K_4: 3, pygame.K_5: 4, pygame.K_6: 5,
+                pygame.K_7: 6, pygame.K_8: 7, pygame.K_9: 8,
+            }
+            if key in num_to_exit:
+                room = self.castle.get_room(self.cel_room)
+                exit_dirs = list(room.exits.keys())
+                idx = num_to_exit[key]
+                if idx < len(exit_dirs):
+                    self._celestine_start_walk(exit_dirs[idx],
+                                               room.exits[exit_dirs[idx]])
+
+    # ── Celestine talk scene ───────────────────────────────────────────────────
+
+    def _celestine_talk_key(self, key: int) -> None:
+        import random
+        npc = self.cel_talk_npc
+        if npc is None or key == pygame.K_ESCAPE:
+            self.cel_talk_npc = None
+            self.scene = "celestine"
+            return
+
+        # [1] Eavesdrop — 50% chance to reveal secret; costs 15 affinity
+        if key == pygame.K_1:
+            if self.cel_affinity < 15:
+                self._log("Celestine: Not enough composure to eavesdrop.")
+                return
+            self.cel_affinity -= 15
+            if random.random() < 0.50:
+                npc.thoughts_read = True
+                self.player.lower_suspicion(5)
+                self._log(f"★ Celestine learns {npc.name.split()[0]}'s secret.")
+                self._log(f"  \"{npc.secret[:50]}\"")
+                self._log("  −5 suspicion")
+                self.sound.play_sfx("power_read")
+            else:
+                self._log(f"✦ {npc.name.split()[0]} notices nothing. Secret stays hidden.")
+                self.sound.play_sfx("fail")
+
+        # [2] Flatter — 40% chance to raise NPC affinity +8; costs 20 affinity
+        elif key == pygame.K_2:
+            if self.cel_affinity < 20:
+                self._log("Celestine: Not charming enough right now.")
+                return
+            self.cel_affinity -= 20
+            if random.random() < 0.40:
+                npc.affinity = min(100, npc.affinity + 8)
+                self._log(f"★ Celestine flatters {npc.name.split()[0]}.")
+                self._log(f"  +8 affinity with the lord (now {npc.affinity}/100)")
+                self.sound.play_sfx("power_charm")
+            else:
+                self._log(f"✦ {npc.name.split()[0]} sees through the flattery.")
+                self.sound.play_sfx("fail")
+
+        # [3] Lift — 55% chance to steal; costs 10 affinity, gains 8 on success
+        elif key == pygame.K_3:
+            if self.cel_affinity < 10:
+                self._log("Celestine: Too rattled to attempt a theft.")
+                return
+            self.cel_affinity -= 10
+            if random.random() < 0.55:
+                gain = random.randint(5, 10)
+                self.player.lower_suspicion(gain)
+                self.cel_affinity = min(100, self.cel_affinity + 8)
+                self._log("★ Celestine lifts something valuable.")
+                self._log(f"  −{gain} suspicion  · +8 composure")
+                self.sound.play_sfx("power_charm")
+            else:
+                self._log(f"✦ Celestine's hand slips. {npc.name.split()[0]} is suspicious.")
+                self.player.raise_suspicion(3)
+                self.sound.play_sfx("fail")
+
+        # [4] Leave
+        elif key == pygame.K_4:
+            self.cel_talk_npc = None
+            self.scene = "celestine"
+
+    def _draw_celestine_talk(self) -> None:
+        """Draw Celestine's talk panel — similar style to interact but uses affinity."""
+        npc = self.cel_talk_npc
+        if npc is None:
+            return
+        pygame.draw.rect(self.screen, PANEL_BG, (0, 0, MAP_W, H))
+        pygame.draw.rect(self.screen, (150, 80, 220), (0, 0, MAP_W, H), 1)
+
+        # NPC portrait
+        npc_key = NPC_PORTRAIT_KEYS.get(npc.name, "servant")
+        draw_npc_portrait(self.screen, npc_key, 20, 30, npc.status_color(), scale=4)
+
+        # NPC info
+        ix = 160
+        name_surf = self.font_title.render(npc.name, True, GOLD)
+        self.screen.blit(name_surf, (ix, 30))
+        role_surf = self.font_ui.render(
+            f"{npc.role.value.title()}  —  {npc.status_label()}  "
+            f"  Affinity: {npc.affinity}/100", True, npc.status_color())
+        self.screen.blit(role_surf, (ix, 68))
+
+        desc_lines = textwrap.wrap(npc.description, width=55)
+        for i, line in enumerate(desc_lines[:3]):
+            surf = self.font_body.render(line, True, WHITE)
+            self.screen.blit(surf, (ix, 96 + i * 20))
+
+        if npc.thoughts_read:
+            pygame.draw.rect(self.screen, (20, 12, 38), (20, 178, MAP_W - 40, 46), border_radius=4)
+            lbl = self.font_ui_b.render("SECRET:", True, (130, 80, 200))
+            self.screen.blit(lbl, (30, 184))
+            sec_surf = self.font_small.render(npc.secret[:70], True, (170, 140, 210))
+            self.screen.blit(sec_surf, (30, 202))
+
+        # Separator
+        pygame.draw.line(self.screen, (150, 80, 220), (20, 236), (MAP_W - 20, 236), 1)
+
+        # Celestine affinity bar
+        aff_lbl = self.font_ui_b.render(f"Celestine — Composure: {self.cel_affinity}/100", True, (200, 140, 255))
+        self.screen.blit(aff_lbl, (30, 244))
+        bar_w = MAP_W - 80
+        pygame.draw.rect(self.screen, (40, 20, 60), (30, 264, bar_w, 10), border_radius=3)
+        filled = int(self.cel_affinity / 100 * bar_w)
+        pygame.draw.rect(self.screen, (180, 100, 255), (30, 264, filled, 10), border_radius=3)
+
+        # Actions
+        pygame.draw.line(self.screen, (150, 80, 220), (20, 284), (MAP_W - 20, 284), 1)
+        header = self.font_ui_b.render("What does Celestine do?", True, MUTED)
+        self.screen.blit(header, (30, 292))
+
+        actions = [
+            ("[1] Eavesdrop",  "50% chance — reveal secret  · costs 15 composure"),
+            ("[2] Flatter",    "40% chance — +8 NPC affinity · costs 20 composure"),
+            ("[3] Lift",       "55% chance — steal evidence  · costs 10 composure"),
+            ("[4] Leave",      "Step away"),
+        ]
+        for i, (label, desc) in enumerate(actions):
+            oy = 320 + i * 50
+            pygame.draw.rect(self.screen, (28, 18, 45), (20, oy, MAP_W - 40, 42), border_radius=4)
+            pygame.draw.rect(self.screen, (100, 55, 160), (20, oy, MAP_W - 40, 42), 1, border_radius=4)
+            lbl_surf = self.font_ui_b.render(label, True, (200, 140, 255))
+            self.screen.blit(lbl_surf, (32, oy + 6))
+            desc_surf = self.font_small.render(desc, True, MUTED)
+            self.screen.blit(desc_surf, (32, oy + 24))
+
+        hint = self.font_ui.render("[ESC] Leave", True, MUTED)
+        self.screen.blit(hint, (30, H - 30))
+
+    def _celestine_start_walk(self, direction: str, target_idx: int) -> None:
+        target_room = self.castle.get_room(target_idx)
+        if target_room.locked:
+            self._log("Celestine: Sealed. She'd need a key.")
+            return
+        self.cel_walking = True
+        self.cel_walk_dir = direction
+        self.cel_walk_target = target_idx
+        self.cel_walk_prog = 0.0
+
+    def _update_celestine(self, dt: float) -> None:
+        """Update Celestine's movement and portal collision."""
+        if self.cel_walking:
+            self.cel_walk_prog += dt * 3.0
+            if self.cel_walk_prog >= 1.0 and self.cel_walk_target is not None:
+                self.cel_room = self.cel_walk_target
+                new_room = self.castle.get_room(self.cel_room)
+                self._log(f"Celestine enters: {new_room.name}")
+                opp = _OPPOSITE_DIR.get(self.cel_walk_dir, "center")
+                rx, ry, rw, rh = self._get_portal_rect(opp)
+                self.cel_px = float(rx + rw // 2)
+                self.cel_py = float(ry + rh // 2)
+                # inward offset
+                _inward = {
+                    "north": (0,  70), "south": (0,  -70),
+                    "east":  (-70, 0), "west":  (70,   0),
+                    "northeast": (-50,  70), "northwest": (50,  70),
+                    "southeast": (-50, -70), "southwest": (50, -70),
+                }
+                ix, iy = _inward.get(opp, (0, 0))
+                self.cel_px = max(40, min(MAP_W - 40, self.cel_px + ix))
+                self.cel_py = max(40, min(H - 40,     self.cel_py + iy))
+                self.cel_walk_target = None
+                self.cel_walk_prog = 0.0
+                self._check_quests()
+            elif self.cel_walk_prog >= 1.0 and self.cel_walk_target is None:
+                self.cel_walking = False
+                self.cel_walk_dir = None
+                self.cel_walk_prog = 0.0
+            return
+
+        # Free movement (Celestine is faster)
+        keys = pygame.key.get_pressed()
+        dx = dy = 0
+        if keys[pygame.K_a] or keys[pygame.K_LEFT]:  dx = -1
+        if keys[pygame.K_d] or keys[pygame.K_RIGHT]: dx =  1
+        if keys[pygame.K_w] or keys[pygame.K_UP]:    dy = -1
+        if keys[pygame.K_s] or keys[pygame.K_DOWN]:  dy =  1
+        if dx != 0 and dy != 0:
+            dx *= 0.707; dy *= 0.707
+        SPD = self.move_speed          # same speed as the vampire
+        self.cel_px = max(20, min(MAP_W - 20, self.cel_px + dx * SPD * dt))
+        self.cel_py = max(20, min(H - 20,     self.cel_py + dy * SPD * dt))
+
+        # Portal collision for Celestine
+        room = self.castle.get_room(self.cel_room)
+        cel_rect = pygame.Rect(int(self.cel_px) - 14, int(self.cel_py) - 14, 28, 28)
+        for direction, target_idx in room.exits.items():
+            rx, ry, rw, rh = self._get_portal_rect(direction)
+            if cel_rect.colliderect(pygame.Rect(rx, ry, rw, rh)):
+                target_room = self.castle.get_room(target_idx)
+                if target_room.locked:
+                    self._log("Celestine: This way is sealed.")
+                    self.cel_px = max(20, min(MAP_W - 20, self.cel_px - dx * 8))
+                    self.cel_py = max(20, min(H - 20,     self.cel_py - dy * 8))
+                else:
+                    self._celestine_start_walk(direction, target_idx)
+                break
+
+    def _draw_celestine_explore(self) -> None:
+        """Draw the explore scene from Celestine's perspective."""
+        room = self.castle.get_room(self.cel_room)
+        cel = self._get_celestine()
+
+        # Room background — slightly tinted purple to distinguish Celestine mode
+        draw_room_background(self.screen, MAP_W, H, self.tick,
+                             getattr(room, 'candle_positions', []))
+        # Purple tint overlay
+        tint = pygame.Surface((MAP_W, H), pygame.SRCALPHA)
+        tint.fill((40, 0, 60, 30))
+        self.screen.blit(tint, (0, 0))
+
+        # Room name / atmosphere
+        atm = self.font_small.render(room.atmosphere, True, MUTED)
+        self.screen.blit(atm, (20, 16))
+        draw_pixel_text(self.screen, self.font_title, room.name, 20, 38, (180, 120, 220), shadow=True)
+
+        # Room description
+        desc_lines = textwrap.wrap(room.description, width=55)
+        for i, line in enumerate(desc_lines):
+            surf = self.font_body.render(line, True, WHITE)
+            self.screen.blit(surf, (20, 80 + i * 22))
+
+        # Draw NPCs in room
+        npcs = self.castle.get_npcs_in_room(self.cel_room)
+        for i, npc in enumerate(npcs):
+            if npc.state == NPCState.FLED:
+                continue
+            nx = 120 + i * 140
+            ny = H - 200
+            color = npc.status_color()
+            role_key = npc.role.value if npc.role.value in ["guard","servant","priest","noble","hunter","alchemist"] else "servant"
+            draw_npc_sprite(self.screen, role_key, nx - 18, ny - 60, color, scale=3)
+            name_surf = self.font_small.render(npc.name, True, color)
+            self.screen.blit(name_surf, (nx - name_surf.get_width() // 2, ny + 6))
+
+        # Draw Celestine sprite (golden-purple, spy role)
+        if not self.cel_walking:
+            draw_npc_sprite(self.screen, "servant", int(self.cel_px) - 18, int(self.cel_py) - 60,
+                            (200, 140, 255), scale=3)
+            cel_label = self.font_small.render("Celestine", True, (200, 140, 255))
+            self.screen.blit(cel_label, (int(self.cel_px) - cel_label.get_width() // 2,
+                                         int(self.cel_py) + 6))
+
+        # Draw exit portals
+        for direction, target_room_id in room.exits.items():
+            self._draw_exit_portal(direction, target_room_id)
+
+        # Composure bar
+        pygame.draw.rect(self.screen, (20, 10, 35), (20, H - 120, MAP_W - 40, 62), border_radius=6)
+        pygame.draw.rect(self.screen, (150, 80, 220), (20, H - 120, MAP_W - 40, 62), 1, border_radius=6)
+        aff_lbl = self.font_ui_b.render(f"Composure: {self.cel_affinity}/100", True, (200, 140, 255))
+        self.screen.blit(aff_lbl, (30, H - 114))
+        bar_w = MAP_W - 80
+        pygame.draw.rect(self.screen, (40, 20, 60), (30, H - 96, bar_w, 8), border_radius=3)
+        if self.cel_affinity > 0:
+            filled = int(self.cel_affinity / 100 * bar_w)
+            pygame.draw.rect(self.screen, (180, 100, 255), (30, H - 96, filled, 8), border_radius=3)
+        hint_line = self.font_ui.render("[E] Talk to NPC  [1-9] Quick exit  [ESC/TAB] Return", True, MUTED)
+        self.screen.blit(hint_line, (30, H - 82))
+
+        # Exits
+        exits_text = "Exits: " + "  ".join(
+            f"[{i+1}] {d.upper()}" for i, d in enumerate(room.exits)
+        )
+        exits_surf = self.font_ui.render(exits_text, True, MUTED)
+        self.screen.blit(exits_surf, (20, H - 48))
+
+        # "Controlling Celestine" banner at top-right
+        banner = self.font_ui_b.render("CONTROLLING: CELESTINE", True, (200, 140, 255))
+        self.screen.blit(banner, (MAP_W - banner.get_width() - 20, 16))
+
     # ── Court scene ───────────────────────────────────────────────────────────
 
     def _draw_court(self) -> None:
@@ -1064,7 +1506,8 @@ class Game:
                 cy = 90 + i * 80
                 pygame.draw.rect(self.screen, (30, 20, 48), (20, cy, MAP_W - 40, 70), border_radius=6)
                 pygame.draw.rect(self.screen, npc.status_color(), (20, cy, MAP_W - 40, 70), 1, border_radius=6)
-                name_surf = self.font_ui_b.render(f"{npc.name}  —  {npc.role.value.title()}", True, npc.status_color())
+                key_num = (i + 1) % 10  # Keys 1-9, wrap to 0 after 9
+                name_surf = self.font_ui_b.render(f"[{key_num}] {npc.name}  —  {npc.role.value.title()}", True, npc.status_color())
                 self.screen.blit(name_surf, (34, cy + 10))
                 state_surf = self.font_small.render(f"State: {npc.status_label()}", True, MUTED)
                 self.screen.blit(state_surf, (34, cy + 32))
@@ -1072,8 +1515,12 @@ class Game:
                     sec_surf = self.font_small.render(f"Secret: {npc.secret[:60]}...", True, (150, 110, 200))
                     self.screen.blit(sec_surf, (34, cy + 50))
 
-        esc_surf = self.font_ui.render("[ESC] Return", True, MUTED)
-        self.screen.blit(esc_surf, (30, H - 40))
+        cel = self._get_celestine()
+        if cel and cel.is_controllable():
+            cel_hint = self.font_ui_b.render("[C] Control Celestine — switch to her perspective", True, (180, 120, 220))
+            self.screen.blit(cel_hint, (30, H - 65))
+        help_text = self.font_ui.render("[1-9] Talk  [ESC] Return", True, MUTED)
+        self.screen.blit(help_text, (30, H - 40))
 
     # ── Game over ─────────────────────────────────────────────────────────────
 
