@@ -67,6 +67,9 @@ NPC_PORTRAIT_KEYS = {
     "Viktor the Torturer": "viktor",
     "Erasmus the Alchemist": "erasmus",
     "Isolde the Vampire Hunter": "isolde",
+    "Celectine the Black Widow": "celectine",
+    "Serica the Silk Bride": "serica",
+    "Aurelia Nocturne": "aurelia",
 }
 
 
@@ -130,7 +133,7 @@ class Game:
         # Outside venture system
         self.last_venture_time = 0.0   # epoch seconds; 0 = never ventured (available immediately)
         self.active_encounter = None   # current Encounter object while in "encounter" scene
-        self.encounter_recruited_npc_ids: set = {"celestine"}   # celestine starts in the castle
+        self.encounter_recruited_npc_ids: set = set()
         self.encounter_unlocked_room_ids: set = set()   # room indices already unlocked via encounters
         self.completed_encounter_ids: set = set()       # encounter IDs already experienced (no repeats)
 
@@ -150,6 +153,15 @@ class Game:
         self.cel_walk_dir = None
         self.cel_walk_target = None
         self.cel_walk_prog = 0.0
+
+        # ── Night cycle ───────────────────────────────────────────────────────
+        self.current_night = 1
+        self.actions_per_night = 5
+        self.actions_remaining = 5
+
+        # ── Morgana state ─────────────────────────────────────────────────────
+        self.morgana_wards = 0                           # cumulative ward count
+        self.room_morgana_influence: dict = {}           # room_idx → 0-100
 
         # Fonts
         self.font_title  = pygame.font.SysFont("Georgia", 28, bold=True)
@@ -257,7 +269,10 @@ class Game:
         elif self.scene == "encounter":
             if key in (pygame.K_SPACE, pygame.K_RETURN, pygame.K_ESCAPE):
                 self.active_encounter = None
-                self.scene = "explore"
+                if self.abilities.pending_levelup:
+                    self.scene = "levelup"
+                else:
+                    self.scene = "explore"
         elif self.scene == "journal":
             self._journal_key(key)
         elif self.scene == "game_over":
@@ -274,7 +289,8 @@ class Game:
                 ab = ABILITY_BY_ID[chosen]
                 self._log(f"✦ Unlocked: {ab.name}")
                 self.sound.play_sfx("level_up")
-                self.scene = "interact"
+                # Return to wherever made sense before levelling up
+                self.scene = "interact" if self.active_npc else "explore"
 
     def _explore_key(self, key: int) -> None:
         # E — interact with nearest NPC in room
@@ -322,6 +338,7 @@ class Game:
             if room.feed_available:
                 msg = self.player.feed(25)
                 self._log(msg)
+                self.spend_night_action("Feeding")
             else:
                 self._log("There is nothing to feed on here.")
 
@@ -329,9 +346,15 @@ class Game:
         elif key == pygame.K_v:
             room = self.castle.get_room(self.player.current_room)
             if room.outside_access:
-                self._start_venture()
+                self.spend_night_action("Venturing outside")
+                if self.scene != "game_over":
+                    self._start_venture()
             else:
                 self._log("There is nowhere to venture from here.")
+
+        # N — end night manually
+        elif key == pygame.K_n:
+            self.end_night()
 
         # Tab — view your court
         elif key == pygame.K_TAB:
@@ -548,6 +571,8 @@ class Game:
         self._log(result.log_message)
         self.dialogue_text = result.dialogue
         self.scene = "result"
+
+        self.spend_night_action(power)   # using a power is a major action
 
         # Check game over conditions
         if p.is_alert_triggered():
@@ -858,6 +883,10 @@ class Game:
         hints = f"[WASD] Walk · touch door to enter   [1-9] Quick exit   [E] Talk   [F] Feed   [X] Examine   [TAB] Court   [M] Map{venture_hint}"
         hint_surf = self.font_ui.render(hints, True, MUTED)
         self.screen.blit(hint_surf, (20, H - 26))
+
+        # Available-actions panel (context-sensitive, lower-right)
+        if not self.examined_element:
+            self._draw_available_actions_panel()
 
         # Quest completion notification (fades out over 3 seconds)
         if self.quest_notification_timer > 0:
@@ -1174,9 +1203,9 @@ class Game:
     # ── Celestine playable mechanics ──────────────────────────────────────────
 
     def _get_celestine(self):
-        """Return Celestine's NPC object if she exists in the castle, else None."""
+        """Return Celectine's NPC object if she exists in the castle, else None."""
         for npc in self.castle.npcs:
-            if "Celestine" in npc.name:
+            if "Celectine" in npc.name:
                 return npc
         return None
 
@@ -1844,8 +1873,7 @@ class Game:
 
         # XP
         if encounter.xp_reward > 0:
-            if self.abilities.add_xp(encounter.xp_reward):
-                self.scene = "levelup"   # will be overridden below; levelup checked later
+            self.abilities.add_xp(encounter.xp_reward)
 
         # Suspicion
         if encounter.suspicion_change > 0:
@@ -1868,13 +1896,15 @@ class Game:
                 npc = factory()
                 # Place NPCs in thematic rooms based on their role/identity
                 npc_room_placement = {
-                    "celestine": 18, # Black Widow → Velvet Chamber (her private seduction room)
-                    "gregori": 16,   # Gravedigger → Cemetery
-                    "esme": 18,      # Hedge Witch → Catacombs (magical)
-                    "roland": 17,    # Warrior → Forge
-                    "petyr": 15,     # Merchant → Castle Gate (meeting place)
-                    "agnes": 16,     # Nun → Cemetery (sacred spaces)
-                    "caius": 17,     # Knight → Forge (armory)
+                    "celectine": 4,  # Celectine the Black Widow → Velvet Chamber
+                    "serica":    14, # Serica the Silk Bride → Winter Garden (quiet, weavable)
+                    "aurelia":   7,  # Aurelia Nocturne → Chapel (where the melody was silenced)
+                    "gregori":   2,  # Gravedigger → Moonlit Cemetery
+                    "esme":      12, # Hedge Witch → Alchemist's Lab (magical)
+                    "roland":    8,  # Warrior → Guard Barracks
+                    "petyr":     1,  # Merchant → Grand Entrance (meeting place)
+                    "agnes":     7,  # Nun → Chapel (sacred spaces)
+                    "caius":     8,  # Knight → Guard Barracks
                 }
                 room_idx = npc_room_placement.get(encounter.recruitable_npc_id, 15)
                 self.castle.add_npc_to_room(npc, room_idx)
@@ -1902,6 +1932,158 @@ class Game:
             self._log("Your blood runs dry. You dissolve into the dark.")
             self.sound.play_sfx("game_over")
             self.scene = "game_over"
+
+    # ── Night cycle ───────────────────────────────────────────────────────────
+
+    def spend_night_action(self, reason: str) -> None:
+        """Consume one major night action. Triggers end_night() when exhausted."""
+        if self.scene == "game_over" or self.actions_remaining <= 0:
+            return
+        self.actions_remaining -= 1
+        self._log(f"{reason.title()} — {self.actions_remaining}/{self.actions_per_night} actions left.")
+        if self.actions_remaining <= 0:
+            self.end_night()
+
+    def end_night(self) -> None:
+        """Advance to the next night: Morgana moves, reset actions."""
+        if self.scene == "game_over":
+            return
+        self._log(f"— Night {self.current_night} ends. —")
+        self._perform_morgana_countermove()
+        # Mild nightly blood drain
+        if self.player.blood > 10:
+            self.player.blood = max(10, self.player.blood - 5)
+            self._log("The dark drains you. −5 blood.")
+        self.current_night += 1
+        self.actions_remaining = self.actions_per_night
+        self._log(f"— Night {self.current_night} begins. ({self.actions_per_night} actions) —")
+
+    def _perform_morgana_countermove(self) -> None:
+        """Pick and apply one Morgana counter-move for the night."""
+        import random
+        night = self.current_night
+        susp  = self.player.castle_suspicion
+
+        # Build weighted pool — heavier options appear more times
+        pool = []
+        pool += ["watching"]   * max(1, 4 - night)   # fades out over nights
+        pool += ["whisper"]    * 3
+        pool += ["wards"]      * 2
+        pool += ["blood_tax"]  * 2
+        if night >= 3:
+            pool += ["corrupt"]  * 3
+            pool += ["hunters"]  * (2 if susp < 70 else 5)
+        if self.player.court and night >= 2:
+            pool += ["tempt"]    * 3
+
+        choice = random.choice(pool)
+
+        if choice == "watching":
+            self._log("Morgana makes no move tonight. That may be worse.")
+
+        elif choice == "whisper":
+            self.player.raise_suspicion(5)
+            self._log("Morgana's whispers move through the castle. Suspicion +5.")
+
+        elif choice == "wards":
+            self.morgana_wards += 1
+            self._log(f"Morgana reinforces the old wards. The castle feels colder. "
+                      f"(Wards: {self.morgana_wards})")
+
+        elif choice == "blood_tax":
+            self.player.blood = max(0, self.player.blood - 5)
+            self._log("Morgana's agents spoil a feeding source. −5 blood.")
+
+        elif choice == "hunters":
+            self.player.raise_suspicion(10)
+            self._log("Beyond the walls, hunters receive a useful rumour. Suspicion +10.")
+
+        elif choice == "corrupt":
+            room_idx = random.randint(0, len(self.castle.rooms) - 1)
+            room_name = self.castle.rooms[room_idx].name
+            self.room_morgana_influence[room_idx] = min(
+                100, self.room_morgana_influence.get(room_idx, 0) + 20)
+            self._log(f"The shadows in {room_name} deepen. Morgana's influence grows there.")
+
+        elif choice == "tempt":
+            npc = random.choice(self.player.court)
+            npc.affinity = max(0, npc.affinity - 3)
+            self._log(f"Morgana reaches for {npc.name.split()[0]} through dreams and old promises.")
+
+        # Check game-over after counter-move effects
+        if self.player.is_alert_triggered():
+            self._log("THE HUNTERS HAVE ARRIVED. Your time is up.")
+            self.sound.play_sfx("game_over")
+            self.scene = "game_over"
+        elif self.player.blood <= 0:
+            self._log("Your blood runs dry. You dissolve into the dark.")
+            self.sound.play_sfx("game_over")
+            self.scene = "game_over"
+
+    # ── Available-actions panel ────────────────────────────────────────────────
+
+    def get_available_actions(self) -> list:
+        """Return context-sensitive action hint strings for the current room."""
+        room  = self.castle.get_room(self.player.current_room)
+        npcs  = self.castle.get_npcs_in_room(self.player.current_room)
+        visible_npcs = [n for n in npcs
+                        if not n.is_hostile() and n.state != NPCState.FLED]
+
+        actions = []
+
+        if visible_npcs:
+            names = ", ".join(n.name.split()[0] for n in visible_npcs[:3])
+            actions.append(f"[E] Talk: {names}")
+
+        if room.interactive_elements:
+            actions.append(f"[X] Examine: {room.interactive_elements[0]['name']}")
+
+        if room.feed_available:
+            actions.append("[F] Feed")
+
+        if room.outside_access:
+            ready = self._venture_cooldown_remaining() <= 0
+            actions.append("[V] Venture outside" if ready else "[V] Venture (resting…)")
+
+        actions.append(f"[N] End night  ({self.actions_remaining}/{self.actions_per_night} left)")
+        actions.append("[TAB] Court   [Q] Journal   [M] Map")
+
+        exits = room.exits
+        if exits:
+            dirs = "  ".join(f"[{i+1}]{d[:2].upper()}" for i, d in enumerate(list(exits)[:4]))
+            actions.append(f"Exits: {dirs}")
+
+        return actions
+
+    def _draw_available_actions_panel(self) -> None:
+        """Overlay a compact 'What can I do here?' panel, lower-right of map."""
+        actions = self.get_available_actions()
+        if not actions:
+            return
+
+        pad    = 7
+        line_h = 16
+        hdr_h  = 18
+        panel_w = 285
+        panel_h = hdr_h + len(actions) * line_h + pad
+
+        px = MAP_W - panel_w - 8
+        py = H - panel_h - 52   # sits just above the exits/controls hints
+
+        # Semi-transparent background
+        bg = pygame.Surface((panel_w, panel_h), pygame.SRCALPHA)
+        bg.fill((10, 6, 20, 210))
+        self.screen.blit(bg, (px, py))
+        pygame.draw.rect(self.screen, (65, 48, 95), (px, py, panel_w, panel_h), 1)
+
+        # Header
+        hdr = self.font_small.render("Available actions", True, (155, 135, 195))
+        self.screen.blit(hdr, (px + pad, py + 3))
+
+        # Lines
+        for i, line in enumerate(actions):
+            surf = self.font_small.render(line, True, MUTED)
+            self.screen.blit(surf, (px + pad, py + hdr_h + i * line_h))
 
     # ── Encounter scene ───────────────────────────────────────────────────────
 
@@ -2080,52 +2262,80 @@ class Game:
 
     def _draw_sidebar(self) -> None:
         sx = MAP_W
+        sw = SIDEBAR_W - 28          # usable inner width
         pygame.draw.rect(self.screen, (16, 10, 28), (sx, 0, SIDEBAR_W, H))
         pygame.draw.line(self.screen, BORDER, (sx, 0), (sx, H), 1)
 
-        # Player name
+        y = 6   # running cursor
+
+        # ── Player name ───────────────────────────────────────────────────────
         name_surf = self.font_ui_b.render(self.player_name, True, GOLD)
-        self.screen.blit(name_surf, (sx + 14, 2))
+        self.screen.blit(name_surf, (sx + 14, y))
+        y += 20
 
-        # Blood bar
+        # ── Night / actions ───────────────────────────────────────────────────
+        night_col = (180, 150, 220)
+        night_surf = self.font_ui_b.render(f"NIGHT {self.current_night}", True, night_col)
+        self.screen.blit(night_surf, (sx + 14, y))
+        acts_col = GOLD if self.actions_remaining > 1 else (220, 100, 60)
+        acts_surf = self.font_small.render(
+            f"  {self.actions_remaining}/{self.actions_per_night} actions",
+            True, acts_col)
+        self.screen.blit(acts_surf, (sx + 14 + night_surf.get_width(), y + 2))
+        y += 20
+
+        # ── Blood bar ─────────────────────────────────────────────────────────
         blood_label = self.font_ui_b.render("BLOOD", True, BLOOD_LIGHT)
-        self.screen.blit(blood_label, (sx + 14, 16))
+        self.screen.blit(blood_label, (sx + 14, y))
+        y += 18
         pct = self.player.blood / self.player.max_blood
-        pygame.draw.rect(self.screen, (40, 20, 28), (sx + 14, 38, SIDEBAR_W - 28, 18), border_radius=4)
+        pygame.draw.rect(self.screen, (40, 20, 28), (sx + 14, y, sw, 14), border_radius=3)
         if pct > 0:
-            pygame.draw.rect(self.screen, BLOOD_RED, (sx + 14, 38, int((SIDEBAR_W - 28) * pct), 18), border_radius=4)
+            pygame.draw.rect(self.screen, BLOOD_RED, (sx + 14, y, int(sw * pct), 14), border_radius=3)
+        y += 16
         blood_num = self.font_small.render(f"{self.player.blood}/{self.player.max_blood}", True, WHITE)
-        self.screen.blit(blood_num, (sx + 14, 60))
+        self.screen.blit(blood_num, (sx + 14, y))
+        y += 22
 
-        # Suspicion bar
+        # ── Suspicion bar ─────────────────────────────────────────────────────
         susp_label = self.font_ui_b.render("SUSPICION", True, self.player.suspicion_color())
-        self.screen.blit(susp_label, (sx + 14, 88))
+        self.screen.blit(susp_label, (sx + 14, y))
+        y += 18
         spct = self.player.castle_suspicion / 100
-        pygame.draw.rect(self.screen, (40, 30, 20), (sx + 14, 110, SIDEBAR_W - 28, 18), border_radius=4)
+        pygame.draw.rect(self.screen, (40, 30, 20), (sx + 14, y, sw, 14), border_radius=3)
         if spct > 0:
             pygame.draw.rect(self.screen, self.player.suspicion_color(),
-                             (sx + 14, 110, int((SIDEBAR_W - 28) * spct), 18), border_radius=4)
-        susp_num = self.font_small.render(f"{self.player.castle_suspicion}/100  —  {self.player.suspicion_label()}", True, self.player.suspicion_color())
-        self.screen.blit(susp_num, (sx + 14, 132))
+                             (sx + 14, y, int(sw * spct), 14), border_radius=3)
+        y += 16
+        susp_num = self.font_small.render(
+            f"{self.player.castle_suspicion}/100  —  {self.player.suspicion_label()}",
+            True, self.player.suspicion_color())
+        self.screen.blit(susp_num, (sx + 14, y))
+        y += 22
 
-        # Court count + Level + XP bar
+        # ── Court count ───────────────────────────────────────────────────────
         court_label = self.font_ui_b.render(f"COURT: {len(self.player.court)}", True, GOLD)
-        self.screen.blit(court_label, (sx + 14, 162))
+        self.screen.blit(court_label, (sx + 14, y))
+        y += 20
 
+        # ── Level + XP bar ────────────────────────────────────────────────────
         xp_label = self.font_ui_b.render(f"LEVEL {self.abilities.level}", True, PURPLE)
-        self.screen.blit(xp_label, (sx + 14, 182))
+        self.screen.blit(xp_label, (sx + 14, y))
+        y += 18
         xp_pct = self.abilities.xp_progress()
-        pygame.draw.rect(self.screen, (30, 20, 50), (sx + 14, 200, SIDEBAR_W - 28, 12), border_radius=3)
+        pygame.draw.rect(self.screen, (30, 20, 50), (sx + 14, y, sw, 10), border_radius=3)
         if xp_pct > 0:
-            pygame.draw.rect(self.screen, PURPLE, (sx + 14, 200, int((SIDEBAR_W - 28) * xp_pct), 12), border_radius=3)
+            pygame.draw.rect(self.screen, PURPLE, (sx + 14, y, int(sw * xp_pct), 10), border_radius=3)
+        y += 12
         xp_num = self.font_small.render(f"XP to next: {self.abilities.xp_to_next()}", True, MUTED)
-        self.screen.blit(xp_num, (sx + 14, 216))
+        self.screen.blit(xp_num, (sx + 14, y))
+        y += 20
 
-        # Quest count hint
+        # ── Quest hint ────────────────────────────────────────────────────────
         active_q = self.quests.active_count()
         unclaimed_q = self.quests.unclaimed_count()
         if unclaimed_q > 0:
-            q_label = f"[Q] Quests — {unclaimed_q} reward{'s' if unclaimed_q > 1 else ''}!"
+            q_label = f"[Q] {unclaimed_q} reward{'s' if unclaimed_q > 1 else ''}!"
             q_color = GREEN
         elif active_q > 0:
             q_label = f"[Q] Quests ({active_q} active)"
@@ -2134,26 +2344,29 @@ class Game:
             q_label = "[Q] Quests"
             q_color = MUTED
         q_surf = self.font_small.render(q_label, True, q_color)
-        self.screen.blit(q_surf, (sx + 14, 234))
+        self.screen.blit(q_surf, (sx + 14, y))
+        y += 18
 
-        # Item count hint
+        # ── Item hint ─────────────────────────────────────────────────────────
         item_count = len(self.player.inventory)
-        if item_count > 0:
-            i_label = f"[I] Items ({item_count})"
-            i_color = (160, 155, 200)
-        else:
-            i_label = "[I] Inventory"
-            i_color = MUTED
+        i_label = f"[I] Items ({item_count})" if item_count > 0 else "[I] Inventory"
+        i_color = (160, 155, 200) if item_count > 0 else MUTED
         i_surf = self.font_small.render(i_label, True, i_color)
-        self.screen.blit(i_surf, (sx + 14, 252))
+        self.screen.blit(i_surf, (sx + 14, y))
+        y += 20
 
-        # Divider
-        pygame.draw.line(self.screen, BORDER, (sx + 10, 186), (W - 10, 186), 1)
-
-        # Event log
+        # ── Divider + Event log ───────────────────────────────────────────────
+        pygame.draw.line(self.screen, BORDER, (sx + 10, y), (W - 10, y), 1)
+        y += 8
         log_label = self.font_ui_b.render("EVENT LOG", True, MUTED)
-        self.screen.blit(log_label, (sx + 14, 194))
-        for i, line in enumerate(self.event_log[-16:]):
-            color = WHITE if i >= len(self.event_log[-16:]) - 2 else MUTED
+        self.screen.blit(log_label, (sx + 14, y))
+        y += 18
+
+        # Calculate how many lines fit in remaining space
+        line_h = 17
+        max_lines = max(1, (H - y - 4) // line_h)
+        visible = self.event_log[-max_lines:]
+        for i, line in enumerate(visible):
+            color = WHITE if i >= len(visible) - 2 else MUTED
             surf = self.font_small.render(line, True, color)
-            self.screen.blit(surf, (sx + 14, 214 + i * 18))
+            self.screen.blit(surf, (sx + 14, y + i * line_h))

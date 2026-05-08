@@ -458,12 +458,7 @@ def make_extra_npcs() -> list:
 
 
 def build_castle() -> Castle:
-    from encounters import ENCOUNTER_NPC_FACTORIES
-    base_npcs = make_castle_npcs()
-    extra_npcs = make_extra_npcs()
-    celestine = ENCOUNTER_NPC_FACTORIES["celestine"]()
-    npcs = base_npcs + extra_npcs + [celestine]
-    CELESTINE_IDX = len(npcs) - 1   # 12
+    npcs = make_castle_npcs() + make_extra_npcs()
 
     rooms = [
 Room(
@@ -704,9 +699,5 @@ Room(name="The Forgotten Vault", description="A dusty, forgotten chamber buried 
             {"name": "Pile of notes", "description": "Loose papers covered in cramped handwriting. 'Precept 33: If lost, stand still and declare yourself the centre of the world. The world will eventually come to you.'"},
         ]),
     ]
-
-    # Place Celestine in the Velvet Chamber (room 4)
-    VELVET_CHAMBER = 4
-    rooms[VELVET_CHAMBER].npc_indices.append(CELESTINE_IDX)
 
     return Castle(rooms=rooms, npcs=npcs)

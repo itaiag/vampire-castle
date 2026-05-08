@@ -111,7 +111,7 @@ NPC_SPRITES = {
         "...P....P...",
         "...P....P...",
     ],
-    "celestine": [        # hooded spy — slim dark cloak, hood up, gold trim
+    "celectine": [        # hooded spy — slim dark cloak, hood up, gold trim
         "...CCCCCC...",   # hood top
         "..CCCCCCCC..",   # hood brim
         "..CC1CC1CC..",   # face in hood shadow
@@ -124,6 +124,34 @@ NPC_SPRITES = {
         "...N.CC.N...",
         "...N....N...",
         "...N....N...",
+    ],
+    "serica": [           # silk bride — flowing ivory gown, gold thread trim
+        "....LLLL....",   # L = ivory silk, T = gold thread
+        "...LLLLLL...",
+        "...L1111L...",
+        "...L1LL1L...",
+        "...LLLLLLT..",
+        "....LLLL....",
+        "..TTLLLLT...",
+        "..TTLLLLTT..",
+        "..TT.LL.TT..",
+        "...T.LL.T...",
+        "...L....L...",
+        "...L....L...",
+    ],
+    "aurelia": [          # nocturne — midnight blue robe, deep gold trim
+        "....MMMM....",   # M = midnight blue, O = old gold
+        "...MMMMMM...",
+        "...M1111M...",
+        "...M1MM1M...",
+        "...MMMMO....",
+        "....MMMM....",
+        "..OOMMMMOO..",
+        "..OOMMMMOO..",
+        "..OO.MM.OO..",
+        "...O.MM.O...",
+        "...M....M...",
+        "...M....M...",
     ],
 }
 
@@ -227,7 +255,7 @@ NPC_PORTRAITS = {
         "..RR.B.GG.",
         "....B.GG..",
     ],
-    "celestine": [  # SPY / SHADOW LADY — hooded, slim, gold-eyed, mysterious
+    "celectine": [  # SPY / SHADOW LADY — hooded, slim, gold-eyed, mysterious
         "...CCCCCC.",
         "..CCCCCCCC",
         "..CC.11.CC",
@@ -241,23 +269,61 @@ NPC_PORTRAITS = {
         "..NN....N.",
         "...N....N.",
     ],
+    "serica": [     # SILK BRIDE — veil, flowing gown, golden thread detail
+        "...LLLLLL..",   # L = ivory silk veil, T = gold thread
+        "..LLLLLLLL.",
+        "..LL.11.LL.",
+        "..LL1T11LL.",
+        "...LLTTLL..",
+        "....LLLL...",
+        "..TTLLLLL..",
+        ".TTTLLLLT..",
+        ".TTT.LL.TT.",
+        "..TT.LL.T..",
+        "..LL....L..",
+        "...L....L..",
+    ],
+    "aurelia": [    # NOCTURNE LADY — midnight blue, deep gold, haunting
+        "...MMMMM...",   # M = midnight blue, O = deep gold
+        "..MMMMMMM..",
+        "..MM.11.MM.",
+        "..MM1O11MM.",
+        "...MMOOMM..",
+        "....MMMM...",
+        "..OOMMMMO..",
+        ".OOOMMMOO..",
+        ".OOO.MM.OO.",
+        "..OO.MM.O..",
+        "..MM....M..",
+        "...M....M..",
+    ],
 }
 
 SPRITE_COLORS = {
-    "B": (40, 20, 60),   # dark purple (vampire body)
-    "P": (80, 40, 110),  # purple (vampire cape)
-    "1": (220, 190, 160),  # skin
-    "S": (100, 100, 110),  # steel (guard armour)
+    "B": (40, 20, 60),    # dark purple (vampire body)
+    "P": (80, 40, 110),   # purple (vampire cape)
+    "1": (220, 190, 160), # skin
+    "S": (100, 100, 110), # steel (guard armour)
     "G": (120, 100, 60),  # gold/brown (guard legs / hunter)
-    "W": (220, 210, 200),  # white (servant / priest robe)
-    "A": (180, 160, 130),  # apron
-    "R": (60, 40, 80),  # robe (priest)
+    "W": (220, 210, 200), # white (servant / priest robe)
+    "A": (180, 160, 130), # apron
+    "R": (60, 40, 80),    # robe (priest)
     "V": (100, 60, 140),  # violet (noble)
-    "X": (80, 60, 100),  # scars/battle marks
-    "K": (60, 40, 80),  # dark leather/blood
-    "+": (200, 200, 100),  # cross/gold
-    ">": (180, 180, 180),  # crossbow/silver
-    "<": (180, 180, 180),  # crossbow/silver
+    "X": (80, 60, 100),   # scars/battle marks
+    "K": (60, 40, 80),    # dark leather/blood
+    "+": (200, 200, 100), # cross/gold
+    ">": (180, 180, 180), # crossbow/silver
+    "<": (180, 180, 180), # crossbow/silver
+    # ── Celectine ──────────────────────────────────────
+    "C": (30, 55, 75),    # dark teal cloak (Celectine)
+    "N": (18, 12, 32),    # night black (Celectine body)
+    "I": (220, 178, 48),  # gold eye glint
+    # ── Serica ─────────────────────────────────────────
+    "L": (240, 228, 212), # ivory silk (Serica gown/veil)
+    "T": (200, 170, 80),  # golden thread (Serica trim)
+    # ── Aurelia ────────────────────────────────────────
+    "M": (38, 28, 88),    # midnight blue (Aurelia robe)
+    "O": (195, 155, 62),  # old gold (Aurelia trim)
 }
 
 TILE_SIZE = 32  # each floor/wall tile is 32x32 pixels

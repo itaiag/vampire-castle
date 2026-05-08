@@ -337,21 +337,75 @@ ENCOUNTERS: list[Encounter] = [
     # ── LEGENDARY NPC RECRUITMENT ─────────────────────────────────────────────
 
     Encounter(
-        id="recruit_celestine",
-        title="The Lady of Shadows",
+        id="recruit_serica",
+        title="The Weaver at the Crossroads",
         description=(
-            "A woman of lethal beauty emerges from the darkness, jewels glinting at her throat. "
-            "'I've heard whispers of you,' she says, circling you like a predator. "
-            "'A vampire reclaiming his castle. How... ambitious.' Her smile is a knife."
+            "A woman kneels at the crossroads in the dark, repairing something by feel alone. "
+            "Around her, threads of white silk stretch between low stakes in the earth — "
+            "a loom built from the road itself. "
+            "She doesn't look up when she hears you.\n\n"
+            "\"I heard the castle had a new master. I weave better in interesting company.\""
         ),
         outcome=(
-            "She plays at seduction while you sense she's calculating every word. "
-            "'I could be useful to you, my lord. I have talents that money cannot buy.' "
-            "She produces a stolen crown jewel from her pocket with a knowing smirk. "
-            "'Shall we discuss terms?'"
+            "She speaks of old families, old alliances, and the uses of patience. "
+            "Her hands never stop moving through the silk. "
+            "At the end she holds out a spool of thread — royal binding thread, she calls it. "
+            "'A castle worth inhabiting needs its rooms properly held together,' she says. "
+            "Her smile is steady. Her eyes measure everything.\n\n"
+            "She follows at a comfortable distance. Silk doesn't chase — it draws."
         ),
-        blood_reward=5, xp_reward=25, suspicion_change=-5, item_id="shadow_coin",
-        recruitable_npc_id="celestine",
+        blood_reward=5, xp_reward=20, suspicion_change=-8,
+        item_id="royal_binding_thread",
+        recruitable_npc_id="serica",
+    ),
+
+    Encounter(
+        id="recruit_aurelia",
+        title="The Nocturne",
+        description=(
+            "High on the ridge above the road, someone is playing. "
+            "Not an instrument you recognise — or rather, you recognise it "
+            "but cannot name the last time you heard it. "
+            "The melody has no resolution; it ends and begins simultaneously. "
+            "You climb toward it without deciding to.\n\n"
+            "The player is a woman seated on a fallen stone, eyes closed, "
+            "a page of notation on her lap moving gently in wind that is not there."
+        ),
+        outcome=(
+            "She opens her eyes when the last note fades. "
+            "'You heard it all the way from the castle?' she says. Not surprised. "
+            "She folds the music sheet and offers it to you. "
+            "'I wrote it for this place. I suppose I should see whether it fits.'\n\n"
+            "She picks up her instrument and walks ahead of you down the ridge. "
+            "She doesn't ask permission. The music is already in the walls."
+        ),
+        blood_reward=8, xp_reward=25, suspicion_change=-10,
+        item_id="aurelias_lost_note",
+        recruitable_npc_id="aurelia",
+    ),
+
+    Encounter(
+        id="recruit_celectine",
+        title="The Widow on the Road",
+        description=(
+            "A carriage stands crooked on the road below the castle — one wheel broken, "
+            "one horse missing, the driver nowhere to be seen. "
+            "A noblewoman in black mourning silk stands beside it, clutching a small perfume vial. "
+            "When she sees you, she takes a frightened step back.\n\n"
+            "\"My lord\u2026 please. Are you master of this castle?\""
+        ),
+        outcome=(
+            "She speaks of hunters on the road, a missing driver, confusion. "
+            "Her story is soft and sad and perfectly assembled. "
+            "Then you mention Morgana \u2014 and something shifts. "
+            "Her hand relaxes around the vial. "
+            "\"Oh,\" she says softly. \"Then perhaps this road was not unlucky after all.\"\n\n"
+            "She offers a small perfume vial as a gesture of gratitude. "
+            "Her smile is warm. Her eyes are calculating. "
+            "She is not afraid of you. She never was."
+        ),
+        blood_reward=5, xp_reward=25, suspicion_change=-5, item_id="widows_perfume_sample",
+        recruitable_npc_id="celectine",
     ),
 
     # ── NPC RECRUITMENT (unique — removed from pool once complete) ────────────
@@ -677,86 +731,394 @@ ENCOUNTERS: list[Encounter] = [
 
 # Maps recruitable_npc_id → display name (for duplicate-check filtering)
 ENCOUNTER_NPC_NAMES: dict[str, str] = {
-    "celestine": "Lady Celestine",
-    "gregori": "Gregori the Gravedigger",
-    "esme":    "Esme the Hedge Witch",
-    "roland":  "Roland the Deserter",
-    "petyr":   "Petyr the Merchant",
-    "agnes":   "Sister Agnes",
-    "caius":   "Sir Caius the Knight",
+    "celectine": "Celectine the Black Widow",
+    "serica":    "Serica the Silk Bride",
+    "aurelia":   "Aurelia Nocturne",
+    "gregori":   "Gregori the Gravedigger",
+    "esme":      "Esme the Hedge Witch",
+    "roland":    "Roland the Deserter",
+    "petyr":     "Petyr the Merchant",
+    "agnes":     "Sister Agnes",
+    "caius":     "Sir Caius the Knight",
 }
 
 
-def _make_celestine():
+def _make_serica():
     from npc import NPC, NPCRole, DialogNode, DialogueOption
     npc = NPC(
-        name="Celestine the Shadow",
+        name="Serica the Silk Bride",
         role=NPCRole.SPY,
-        description="A woman of lethal beauty with calculating eyes. She moves like smoke and smiles like a viper. Every gesture is a weapon, every word a test. There is nothing innocent about her.",
-        secret="She is a master thief and manipulator who has seduced her way into a dozen fortunes. She sees you not as a prize but as a tool — a powerful one. She's never loved anyone. Control is her only drug.",
-        greeting="Well, well. A real vampire. How delicious. I think we can help each other, my lord. As long as you understand the rules.",
-        likes=["power", "wealth", "secrets", "clever minds", "independence", "sharp steel", "winning"],
-        dislikes=["sentiment", "weakness", "being caged", "boredom", "fools", "love"],
-        charm_resistance=6, intimidate_resistance=4,
-        enthrall_resistance=5, enthrall_blood_cost=25,
-        charm_success_line="Clever. You might actually be useful. But don't mistake seduction for surrender.",
-        charm_fail_line="Better luck next time, my lord. I don't fall easily.",
-        intimidate_success_line="Oh, how delightful. A predator with teeth. I respect that. What do you want?",
-        intimidate_fail_line="Threaten me and I'll disappear. You'll never find me. Is that what you want?",
-        enthrall_success_line="How amusing. You've bent my will. But I'll remember this, master.",
-        enthrall_fail_line="Nice try. I've broken stronger wills than yours. Don't waste my time.",
-        thought_read_line="A mind like a locked vault filled with secrets, lies, and stolen treasures. She's calculating, always. She wonders what leverage she can find. She fears nothing except being forgettable.",
+        description=(
+            "A pale, precise woman in white silk that moves as if it remembers being alive. "
+            "She speaks in unhurried sentences, holds eye contact a moment too long, "
+            "and gives the impression she already knows how every conversation will end."
+        ),
+        secret=(
+            "Serica is a weave-blooded noble from a house that dealt in binding contracts — "
+            "not legal ones but something older, worked into silk and spoken over loom. "
+            "She came to the castle because Morgana holds a binding that should not exist, "
+            "and Serica intends to unravel it thread by thread. "
+            "She does not share this objective. She shares thread."
+        ),
+        greeting=(
+            "I wondered when you would find me. "
+            "A castle draws the right people to it, eventually. "
+            "I hope you are patient. Good weaving takes time."
+        ),
+        likes=["patience", "precision", "subtle plans", "long games", "craft", "quality work",
+               "silence that means something", "reliable people"],
+        dislikes=["haste", "blunt instruments", "broken promises", "waste",
+                  "shoddy workmanship", "people who interrupt threads mid-weave"],
+        charm_resistance=5, intimidate_resistance=6,
+        enthrall_resistance=5, enthrall_blood_cost=24,
+        charm_success_line=(
+            "You chose the right thread to pull. "
+            "I find that impressive and slightly worrying."
+        ),
+        charm_fail_line="I have been charmed by better. Show me something real.",
+        intimidate_success_line=(
+            "Ah. Force. Well. "
+            "I can work with force, I suppose. It is an inefficient loom."
+        ),
+        intimidate_fail_line=(
+            "My lord, I have watched three lords threaten me this decade. "
+            "You will need something sharper."
+        ),
+        enthrall_success_line="The thread holds. For now. Don't pull it carelessly.",
+        enthrall_fail_line=(
+            "No. My will has been bound before. "
+            "I know the difference between silk and a cage."
+        ),
+        thought_read_line=(
+            "Her mind is structured like a loom — not chaotic, not layered, "
+            "but interlocked. She is here because Morgana holds a binding thread "
+            "that should have belonged to her house. "
+            "She wants it back. She will not ask directly."
+        ),
     )
     npc.add_dialogue(DialogNode(
-        id="celestine_1",
-        text="What do you want from me?",
-        response="Everything I can take without getting caught. Information, resources, power. In exchange, I'll help you keep it. Win-win, don't you think?",
-        affinity_change=5, option_type=DialogueOption.NEUTRAL,
-    ))
-    npc.add_dialogue(DialogNode(
-        id="celestine_2",
-        text="I need someone I can trust completely.",
-        response="Trust? How quaint. No one can be trusted completely. But I can be bought. And you, my lord, are very wealthy.",
-        affinity_change=6, option_type=DialogueOption.NEUTRAL,
-    ))
-    npc.add_dialogue(DialogNode(
-        id="celestine_3",
-        text="Work with me. Not for love, but for power.",
-        response="Now that's a conversation. Yes, I'll work with you. Not because I love you — I don't love anyone. But because together, we can take anything we want.",
-        requires=["celestine_1"], min_affinity=20,
-        affinity_change=15, suspicion_change=-10,
+        id="serica_1",
+        text="What brings you to this castle?",
+        response=(
+            "Unfinished business. The best kind — it gives you somewhere to be."
+        ),
+        affinity_change=5,
         option_type=DialogueOption.NEUTRAL,
     ))
     npc.add_dialogue(DialogNode(
-        id="celestine_special",
-        text="Teach me your arts. I want to move unseen like you.",
-        response="Oh, I like that. You understand. Very well. I'll teach you the shadows. Together we'll own this world.",
-        requires=["celestine_3"], min_affinity=35,
-        affinity_change=12, suspicion_change=-15,
+        id="serica_2",
+        text="What do you know about Morgana?",
+        response=(
+            "That she took something that was not hers, bound it into the castle's bones, "
+            "and called it governance. "
+            "I know what kind of binding that is. I know how to unmake it."
+        ),
+        affinity_change=8,
         option_type=DialogueOption.NEUTRAL,
     ))
     npc.add_dialogue(DialogNode(
-        id="celestine_steal",
-        text="Go steal something precious. Make them paranoid.",
-        response="Oh, how I love this. Watch and learn, my lord.",
-        requires=["celestine_3"], min_affinity=25,
-        affinity_change=8, blood_reward=5, suspicion_change=-20,
+        id="serica_3",
+        text="Tell me about the binding she holds.",
+        response=(
+            "A contract made before the castle was built. "
+            "Thread spun from promises and sealed with blood — not your blood, "
+            "someone older's. "
+            "It gives whoever holds it authority over every arrangement made inside these walls. "
+            "Morgana holds it. She shouldn't."
+        ),
+        requires=["serica_1", "serica_2"],
+        min_affinity=20,
+        affinity_change=10,
+        suspicion_change=-5,
         option_type=DialogueOption.NEUTRAL,
     ))
     npc.add_dialogue(DialogNode(
-        id="celestine_spy",
-        text="I need information. Spy for me.",
-        response="Spying is what I do best. Give me time. I'll know everything worth knowing.",
-        requires=["celestine_3"], min_affinity=30,
-        affinity_change=10, suspicion_change=-15,
+        id="serica_4",
+        text="Can you unravel it?",
+        response=(
+            "Given access to the right rooms and the right amount of time, yes. "
+            "I will need to work in private. "
+            "And I will need you not to ask questions when the walls seem quieter than usual."
+        ),
+        requires=["serica_3"],
+        min_affinity=35,
+        affinity_change=12,
+        suspicion_change=-10,
         option_type=DialogueOption.NEUTRAL,
     ))
     npc.add_dialogue(DialogNode(
-        id="celestine_partner",
-        text="I'm making you my equal. My partner in shadows.",
-        response="Finally. Someone who understands that love is a cage. Partners are so much better. We'll take everything.",
-        requires=["celestine_special", "celestine_spy"], min_affinity=50,
-        affinity_change=20, blood_reward=20, suspicion_change=-25,
+        id="serica_partner",
+        text="Help me take the castle from Morgana. I will give you full access.",
+        response=(
+            "Then we have an arrangement. "
+            "I will begin with the Throne Room — the binding is tightest there. "
+            "Don't interrupt me when I'm working. "
+            "Silk doesn't knot itself twice the same way."
+        ),
+        requires=["serica_4"],
+        min_affinity=50,
+        affinity_change=18,
+        blood_reward=8,
+        suspicion_change=-12,
+        option_type=DialogueOption.NEUTRAL,
+    ))
+    return npc
+
+
+def _make_aurelia():
+    from npc import NPC, NPCRole, DialogNode, DialogueOption
+    npc = NPC(
+        name="Aurelia Nocturne",
+        role=NPCRole.NOBLE,
+        description=(
+            "A tall woman in deep midnight blue, moving as if the air around her "
+            "is still sounding a note she played earlier. "
+            "She speaks slowly, weighs words like intervals, "
+            "and has the expression of someone listening to something you cannot hear."
+        ),
+        secret=(
+            "Aurelia composed the castle's founding melody — a piece built into the walls "
+            "that keeps the structure standing and the old wards from collapsing. "
+            "Morgana silenced it. The castle has been slowly unravelling ever since. "
+            "Aurelia has been trying to find her way back inside to finish the nocturne "
+            "that Morgana interrupted thirty years ago."
+        ),
+        greeting=(
+            "The castle is quieter than I remember. "
+            "Morgana took something out of the walls when she took over. "
+            "I have been working on how to put it back."
+        ),
+        likes=["music", "night", "silence that listens", "patience", "old architecture",
+               "things that endure", "craftsmanship", "honest difficulty"],
+        dislikes=["noise without purpose", "Morgana", "forced cheer", "haste",
+                  "ignorance of what a place remembers", "anyone who silences a melody"],
+        charm_resistance=4, intimidate_resistance=5,
+        enthrall_resistance=6, enthrall_blood_cost=26,
+        charm_success_line=(
+            "You hear something. Not many do. "
+            "I will stay, for now."
+        ),
+        charm_fail_line="I am not moved by beautiful words. Play me something true.",
+        intimidate_success_line=(
+            "Force is a very blunt interval. "
+            "I will cooperate. But you waste what I could give you."
+        ),
+        intimidate_fail_line=(
+            "My lord, I have been silenced by Morgana herself. "
+            "Threaten me more quietly."
+        ),
+        enthrall_success_line="The melody holds. Treat it carefully.",
+        enthrall_fail_line=(
+            "No. "
+            "I have spent thirty years resisting a more elegant cage than this."
+        ),
+        thought_read_line=(
+            "A slow, resonant mind — more like architecture than thought. "
+            "She wrote the castle's founding nocturne. Morgana interrupted it. "
+            "The final movement is unfinished and she cannot rest until it is played. "
+            "She believes completing it will restore something the castle has forgotten."
+        ),
+    )
+    npc.add_dialogue(DialogNode(
+        id="aurelia_1",
+        text="What melody did the castle once have?",
+        response=(
+            "Every building built to last has a founding note — "
+            "something played into the stones when the mortar was still wet. "
+            "I wrote this castle's. "
+            "Morgana had the last movement silenced when she took power."
+        ),
+        affinity_change=6,
+        option_type=DialogueOption.NEUTRAL,
+    ))
+    npc.add_dialogue(DialogNode(
+        id="aurelia_2",
+        text="What happens if the melody is finished?",
+        response=(
+            "The old wards resume. The castle remembers what it was built to protect. "
+            "Some rooms that have been slowly failing will hold again. "
+            "And whatever Morgana bound into the walls to replace it... "
+            "will have nothing to grip."
+        ),
+        affinity_change=8,
+        option_type=DialogueOption.NEUTRAL,
+    ))
+    npc.add_dialogue(DialogNode(
+        id="aurelia_3",
+        text="Can you play the final movement here?",
+        response=(
+            "Not yet. The walls have been holding the wrong note for thirty years — "
+            "I have to work room by room, retuning. "
+            "The Chapel will be last. That is where Morgana silenced it."
+        ),
+        requires=["aurelia_1"],
+        min_affinity=20,
+        affinity_change=10,
+        suspicion_change=-8,
+        option_type=DialogueOption.NEUTRAL,
+    ))
+    npc.add_dialogue(DialogNode(
+        id="aurelia_4",
+        text="What do you need from me?",
+        response=(
+            "Access to every room. "
+            "And for no one to stop me when the castle becomes briefly, "
+            "unsettlingly louder than it should be."
+        ),
+        requires=["aurelia_3"],
+        min_affinity=30,
+        affinity_change=10,
+        suspicion_change=-6,
+        option_type=DialogueOption.NEUTRAL,
+    ))
+    npc.add_dialogue(DialogNode(
+        id="aurelia_partner",
+        text="Finish the nocturne. Take the castle back from Morgana's silence.",
+        response=(
+            "Then I will begin tonight. "
+            "You will not hear it — not consciously. "
+            "But the walls will. "
+            "And in time, what is wrong here will have nowhere left to stand."
+        ),
+        requires=["aurelia_4"],
+        min_affinity=45,
+        affinity_change=16,
+        blood_reward=10,
+        suspicion_change=-15,
+        option_type=DialogueOption.NEUTRAL,
+    ))
+    return npc
+
+
+def _make_celectine():
+    from npc import NPC, NPCRole, DialogNode, DialogueOption
+    npc = NPC(
+        name="Celectine the Black Widow",
+        role=NPCRole.SPY,
+        description=(
+            "A graceful noble widow in black mourning silk. Soft-spoken, apparently fragile. "
+            "Yet her stillness is too controlled, her perfume too deliberate, "
+            "and her smile too well-timed. Something watches from behind the sweetness."
+        ),
+        secret=(
+            "Celectine is not a helpless widow. She is a lamia-blooded noble predator "
+            "who arranged the carriage attack to create a reason to approach the castle. "
+            "Her perfume blends night-bloom pollen, lamia venom, and alchemy \u2014 "
+            "it does not create desire. It removes discipline. "
+            "She came seeking access to Morgana, but seeing the vampire she senses something rarer: "
+            "a path to immortality."
+        ),
+        greeting=(
+            "My lord. I was beginning to wonder whether you had forgotten me. "
+            "Then again, useful men rarely remain forgetful for long."
+        ),
+        likes=["subtlety", "secrets", "clever lies", "restraint", "power used elegantly",
+               "independence", "perfume", "useful monsters"],
+        dislikes=["clumsy threats", "brute force", "public feeding", "sentiment without leverage",
+                  "being caged", "boredom", "being owned"],
+        charm_resistance=7, intimidate_resistance=4,
+        enthrall_resistance=6, enthrall_blood_cost=28,
+        charm_success_line=(
+            "Clever. You found the edge of the mask. "
+            "Do not mistake that for seeing my face."
+        ),
+        charm_fail_line="Sweetly done. Too sweetly. I know the taste of bait.",
+        intimidate_success_line=(
+            "There are the teeth. Good. "
+            "I prefer monsters who do not pretend to be candles."
+        ),
+        intimidate_fail_line=(
+            "If you must threaten me, my lord, at least make it beautiful."
+        ),
+        enthrall_success_line=(
+            "Ah. So the cage has velvet."
+        ),
+        enthrall_fail_line=(
+            "No. I have worn too many names to be caught by one command."
+        ),
+        thought_read_line=(
+            "Her mind is layered like silk over scales. "
+            "Fear on top. Calculation beneath. Desire beneath that. "
+            "She wants access to Morgana, protection from old enemies, "
+            "and something she cannot steal: immortality."
+        ),
+    )
+    npc.add_dialogue(DialogNode(
+        id="celectine_1",
+        text="Why pretend to be helpless?",
+        response=(
+            "Because helpless women are rescued, underestimated, and invited indoors. "
+            "Monsters have to knock."
+        ),
+        affinity_change=5,
+        option_type=DialogueOption.NEUTRAL,
+    ))
+    npc.add_dialogue(DialogNode(
+        id="celectine_2",
+        text="What are you?",
+        response=(
+            "A widow, when useful. A noblewoman, when invited. "
+            "A monster, when the room is honest."
+        ),
+        affinity_change=5,
+        option_type=DialogueOption.NEUTRAL,
+    ))
+    npc.add_dialogue(DialogNode(
+        id="celectine_3",
+        text="Tell me about your perfume.",
+        response=(
+            "It does not create desire. That would be vulgar. "
+            "It reminds people what they already want, "
+            "then removes their discipline."
+        ),
+        requires=["celectine_1"],
+        min_affinity=20,
+        affinity_change=8,
+        suspicion_change=-5,
+        option_type=DialogueOption.NEUTRAL,
+    ))
+    npc.add_dialogue(DialogNode(
+        id="celectine_4",
+        text="What do you know about Morgana?",
+        response=(
+            "That she expects old enemies, loyal servants, hunters, priests, "
+            "and desperate nobles. She does not expect me. "
+            "That is the first useful thing about me."
+        ),
+        requires=["celectine_2"],
+        min_affinity=20,
+        affinity_change=10,
+        suspicion_change=-8,
+        option_type=DialogueOption.NEUTRAL,
+    ))
+    npc.add_dialogue(DialogNode(
+        id="celectine_5",
+        text="I need you close to Morgana.",
+        response=(
+            "Then give me a name she does not know, "
+            "a secret she wants, "
+            "and a reason to be alone with me."
+        ),
+        requires=["celectine_4"],
+        min_affinity=35,
+        affinity_change=12,
+        suspicion_change=-10,
+        option_type=DialogueOption.NEUTRAL,
+    ))
+    npc.add_dialogue(DialogNode(
+        id="celectine_partner",
+        text="Work with me. Not for love \u2014 for power.",
+        response=(
+            "Now that is a conversation worth having. "
+            "Yes. Not because I trust you \u2014 I do not trust anyone. "
+            "But because you are the most dangerous thing on this road tonight, "
+            "and dangerous things are useful."
+        ),
+        requires=["celectine_3", "celectine_5"],
+        min_affinity=50,
+        affinity_change=18,
+        blood_reward=10,
+        suspicion_change=-15,
         option_type=DialogueOption.NEUTRAL,
     ))
     return npc
@@ -1022,13 +1384,15 @@ def _make_caius():
 
 # Public factory lookup
 ENCOUNTER_NPC_FACTORIES: dict[str, callable] = {
-    "celestine": _make_celestine,
-    "gregori": _make_gregori,
-    "esme":    _make_esme,
-    "roland":  _make_roland,
-    "petyr":   _make_petyr,
-    "agnes":   _make_agnes,
-    "caius":   _make_caius,
+    "celectine": _make_celectine,
+    "serica":    _make_serica,
+    "aurelia":   _make_aurelia,
+    "gregori":   _make_gregori,
+    "esme":      _make_esme,
+    "roland":    _make_roland,
+    "petyr":     _make_petyr,
+    "agnes":     _make_agnes,
+    "caius":     _make_caius,
 }
 
 

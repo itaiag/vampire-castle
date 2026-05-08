@@ -251,4 +251,49 @@ ITEMS: dict[str, Item] = {item.id: item for item in [
         rarity="legendary",
         effect=ItemEffect(type="feed_bonus", value=35),
     ),
+
+    # ── Quest Items ───────────────────────────────────────────────────────────
+
+    Item(
+        id="widows_perfume_sample",
+        name="Widow's Perfume",
+        description=(
+            "A black-glass vial. The scent changes each time it is remembered — "
+            "jasmine, then iron, then something older. "
+            "Whatever it does, it does not create desire. It removes discipline."
+        ),
+        flavor=(
+            "A black-glass vial. The scent changes each time it is remembered — "
+            "jasmine, then iron, then something older. "
+            "Whatever it does, it does not create desire. It removes discipline."
+        ),
+        rarity="rare",
+        effect=ItemEffect(type="suspicion_mult", value=0),  # quest_item placeholder
+    ),
+
+    Item(
+        id="royal_binding_thread",
+        name="Royal Binding Thread",
+        description="Charm skill +1",
+        flavor=(
+            "A spool of silver-white thread that holds its shape perfectly. "
+            "Serica wove it from memory and moonlight. "
+            "The hands that touch it become more persuasive — or more patient."
+        ),
+        rarity="rare",
+        effect=ItemEffect(type="skill_charm", value=1),
+    ),
+
+    Item(
+        id="aurelias_lost_note",
+        name="Aurelia's Lost Note",
+        description="Reduces suspicion gained by 20%",
+        flavor=(
+            "A folded sheet of music, stained with candle wax. "
+            "The melody written on it has no beginning and no end — "
+            "humming it makes the people around you forget to be afraid."
+        ),
+        rarity="rare",
+        effect=ItemEffect(type="suspicion_mult", value=20),
+    ),
 ]}
